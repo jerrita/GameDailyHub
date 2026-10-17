@@ -50,14 +50,22 @@ public sealed class ProcessService
             {
                 try
                 {
-                    if (process.SessionId == currentSession && string.Equals(Normalize(process.MainModule!.FileName), target, StringComparison.OrdinalIgnoreCase))
+                    // Same-named processes we cannot inspect (elevated/system) are not controllable by us, so they are skipped.
+                    if (process.SessionId == currentSession && ImagePath(process.Id) is { } image && string.Equals(Normalize(image), target, StringComparison.OrdinalIgnoreCase))
                         found.Add(new(process.Id, process.StartTime.ToUniversalTime().ToFileTimeUtc(), target, currentSession));
                 }
-                catch (InvalidOperationException) { }
-                catch (Win32Exception) { throw new InvalidOperationException("无法确认同名进程的真实路径，请检查权限后重试：" + target); }
+                catch (Exception e) when (e is InvalidOperationException or Win32Exception) { }
             }
         }
         return found;
+    }
+    private static string? ImagePath(int pid)
+    {
+        using var handle = NativeMethods.OpenProcess(0x1000, false, pid); // PROCESS_QUERY_LIMITED_INFORMATION
+        if (handle.IsInvalid) return null;
+        var name = new StringBuilder(1024);
+        var size = name.Capacity;
+        return NativeMethods.QueryFullProcessImageName(handle, 0, name, ref size) ? name.ToString(0, size) : null;
     }
     public bool IsSameProcess(ProcessIdentity identity)
     {
@@ -65,7 +73,7 @@ public sealed class ProcessService
         {
             using var process = Process.GetProcessById(identity.Pid);
             return process.SessionId == identity.SessionId && process.StartTime.ToUniversalTime().ToFileTimeUtc() == identity.CreatedFileTime
-                && string.Equals(Normalize(process.MainModule!.FileName), identity.Path, StringComparison.OrdinalIgnoreCase);
+                && ImagePath(identity.Pid) is { } image && string.Equals(Normalize(image), identity.Path, StringComparison.OrdinalIgnoreCase);
         }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException or Win32Exception) { return false; }
     }
