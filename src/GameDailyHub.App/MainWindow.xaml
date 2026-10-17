@@ -143,6 +143,11 @@
                                             <ComboBox Header="使用的助手" ItemsSource="{x:Bind ViewModel.AdapterIds}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedAdapterId, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
                                             <Button Content="移除此游戏" Command="{x:Bind ViewModel.RemoveGameCommand}"/>
                                         </StackPanel>
+                                        <StackPanel Spacing="8">
+                                            <TextBlock Text="助手配置复用" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入助手配置" Click="ImportAssistant_Click"/><Button Content="导出助手配置" Click="ExportAssistant_Click"/></StackPanel>
+                                            <TextBlock Text="仅包含日常执行方式、结果判定、超时与重试；不含游戏及助手的安装路径。导入后需保存。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                        </StackPanel>
                                         <Expander Header="启动方式" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                             <StackPanel Spacing="14">
                                                 <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="助手界面入口（可选；March7th 同目录自动识别）" Text="{Binding SelectedGame.Config.ToolGuiPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="选择文件" Tag="ToolGuiPath" Click="Browse_Click" VerticalAlignment="Bottom"/></Grid>

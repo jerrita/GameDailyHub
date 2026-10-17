@@ -557,6 +557,22 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ScheduleTime)); OnPropertyChanged(nameof(ScheduleTimeZone)); OnPropertyChanged(nameof(ScheduleEnabled));
         await RefreshHistoryAsync(); ThemeRequested?.Invoke(_config.Theme); Show("配置已导入；每日计划保持关闭，请核对后启用。");
     });
+    public async Task ExportAssistantAsync(string path) => await GuardAsync(async () =>
+    {
+        var game = SelectedGame?.Config ?? throw new InvalidOperationException("请先选择游戏");
+        await File.WriteAllTextAsync(path, AssistantProfileService.Export(game));
+        Show(game.Name + "：助手配置已导出（不含安装路径，可在其它机器导入）");
+    });
+    public async Task ImportAssistantAsync(string path) => await GuardAsync(async () =>
+    {
+        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后导入助手配置");
+        var card = SelectedGame ?? throw new InvalidOperationException("请先选择游戏");
+        AssistantProfileService.Import(await File.ReadAllTextAsync(path), card.Config);
+        ConfigurationSuggestions.Apply(card.Config);
+        // Replace the selection notification so classic bindings re-read the imported values.
+        SelectedGame = null; SelectedGame = card; card.Refresh(); RefreshConfigurationOptions();
+        Show(card.Name + "：助手配置已导入，请核对后点击保存。");
+    });
     public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
     private Visibility VisibilityFor(string page) => SelectedPage == page ? Visibility.Visible : Visibility.Collapsed;
     private void OnSelectedPageChanged(string value)

@@ -116,6 +116,16 @@ public sealed partial class MainWindow : Window
         var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "JSON 配置\0*.json\0\0", true);
         if (path is not null) await ViewModel.ExportAsync(path);
     }
+    private async void ImportAssistant_Click(object sender, RoutedEventArgs args)
+    {
+        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "助手配置\0*.json\0\0");
+        if (path is not null) await ViewModel.ImportAssistantAsync(path);
+    }
+    private async void ExportAssistant_Click(object sender, RoutedEventArgs args)
+    {
+        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "助手配置\0*.json\0\0", true);
+        if (path is not null) await ViewModel.ExportAssistantAsync(path);
+    }
     private void OpenLogs_Click(object sender, RoutedEventArgs args)
     {
         try { Directory.CreateDirectory(ViewModel.ActualLogDirectory); Process.Start(new ProcessStartInfo(ViewModel.ActualLogDirectory) { UseShellExecute = true }); }
