@@ -16,13 +16,7 @@ public static class ConfigurationSuggestions
         if (string.IsNullOrWhiteSpace(game.ToolPath))
         {
             var path = DefaultToolPaths(game.AdapterId, installationRoots).FirstOrDefault(File.Exists);
-            if (path is not null)
-            {
-                game.ToolPath = path;
-                game.Daily.VersionConfirmed = false;
-                game.Daily.VerifiedFileStamp = "";
-                game.Daily.SafeSettingsConfirmed = false;
-            }
+            if (path is not null) game.ToolPath = path;
         }
         if (game.AdapterId != "march7th" || !File.Exists(game.ToolPath)) return;
         var directory = Path.GetDirectoryName(game.ToolPath)!;

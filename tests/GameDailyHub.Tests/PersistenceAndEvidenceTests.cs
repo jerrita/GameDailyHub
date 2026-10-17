@@ -59,14 +59,12 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         game.ToolGuiPath = "custom-launcher.exe";
         ConfigurationSuggestions.Apply(game);
         Assert.Equal("custom-launcher.exe", game.ToolGuiPath);
-        Assert.False(game.Daily.VersionConfirmed);
-        Assert.False(game.Daily.SafeSettingsConfirmed);
     }
     [Theory]
     [InlineData("bettergi", "BetterGI", "BetterGI.exe")]
     [InlineData("march7th", "March7thAssistant", "March7th Assistant.exe")]
     [InlineData("okww", "ok-ww", "ok-ww.exe")]
-    public void BlankAssistantPathUsesExistingDefaultAndRequiresVerification(string adapter, string folder, string executable)
+    public void BlankAssistantPathUsesExistingDefault(string adapter, string folder, string executable)
     {
         var directory = Path.Combine(_directory, folder);
         Directory.CreateDirectory(directory);
@@ -77,19 +75,10 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var game = new GameConfig
         {
             AdapterId = adapter,
-            ToolPath = " ",
-            Daily = new()
-            {
-                VersionConfirmed = true,
-                SafeSettingsConfirmed = true,
-                VerifiedFileStamp = "previous-installation"
-            }
+            ToolPath = " "
         };
         ConfigurationSuggestions.Apply(game, [_directory]);
         Assert.Equal(path, game.ToolPath);
-        Assert.False(game.Daily.VersionConfirmed);
-        Assert.False(game.Daily.SafeSettingsConfirmed);
-        Assert.Empty(game.Daily.VerifiedFileStamp);
         Assert.Equal(adapter == "march7th" ? launcher : "", game.ToolGuiPath);
     }
     [Fact]
@@ -100,14 +89,10 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var game = new GameConfig
         {
             AdapterId = "bettergi",
-            ToolPath = Path.Combine(_directory, "custom.exe"),
-            Daily = new() { VersionConfirmed = true, SafeSettingsConfirmed = true, VerifiedFileStamp = "custom" }
+            ToolPath = Path.Combine(_directory, "custom.exe")
         };
         ConfigurationSuggestions.Apply(game, [_directory]);
         Assert.Equal(Path.Combine(_directory, "custom.exe"), game.ToolPath);
-        Assert.Equal("custom", game.Daily.VerifiedFileStamp);
-        Assert.True(game.Daily.VersionConfirmed);
-        Assert.True(game.Daily.SafeSettingsConfirmed);
     }
     [Fact]
     public void DefaultSearchUsesFirstExistingInstallationAndLeavesUnknownToolsAlone()
@@ -147,7 +132,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
             GamePath = " ",
             ToolPath = "custom-assistant.exe",
             Normal = new() { Arguments = "client-argument" },
-            Daily = new() { VersionConfirmed = true, SafeSettingsConfirmed = true, VerifiedFileStamp = "verified" }
+            Daily = new() { Arguments = "daily-argument" }
         };
 
         ConfigurationSuggestions.Apply(game, [_directory]);
@@ -157,9 +142,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         Assert.Equal(path, game.NormalPath);
         Assert.Equal("client-argument", game.Normal.Arguments);
         Assert.Equal("custom-assistant.exe", game.ToolPath);
-        Assert.True(game.Daily.VersionConfirmed);
-        Assert.True(game.Daily.SafeSettingsConfirmed);
-        Assert.Equal("verified", game.Daily.VerifiedFileStamp);
+        Assert.Equal("daily-argument", game.Daily.Arguments);
     }
     [Fact]
     public void GameDefaultSearchRespectsExplicitPathsAndInstallationOrder()

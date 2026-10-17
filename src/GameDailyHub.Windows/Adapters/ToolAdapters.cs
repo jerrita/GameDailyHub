@@ -86,16 +86,6 @@ public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapte
         {
             CheckFile(game.Daily.Trigger == TriggerMode.Manual && !string.IsNullOrWhiteSpace(game.ToolGuiPath) ? game.ToolGuiPath : game.ToolPath, "任务助手路径");
             if (!double.IsFinite(game.Daily.TimeoutMinutes) || game.Daily.TimeoutMinutes <= 0 || game.Daily.TimeoutMinutes > 1440 || game.Daily.RetryCount is < 0 or > 10) errors.Add("超时或重试配置无效");
-            if (!game.Daily.SafeSettingsConfirmed) errors.Add("请确认助手未启用循环、自动计划及关机等完成后操作");
-            if (game.Daily.Trigger != TriggerMode.Manual && (!game.Daily.VersionConfirmed || string.IsNullOrWhiteSpace(game.Daily.VerifiedVersion))) errors.Add("请核对工具版本与官方入口并填写已核验版本");
-            if (game.Daily.Trigger != TriggerMode.Manual && (string.IsNullOrWhiteSpace(game.Daily.VerifiedFileStamp) || game.Daily.VerifiedFileStamp != ProcessService.FileStamp(game.ToolPath)))
-                errors.Add("助手文件尚未核验或已变化。请在运行前确认中重新核验并保存");
-            var baseline = game.Daily.VerifiedVersion.Trim().TrimStart('v', 'V') == Capabilities.BaselineVersion.TrimStart('v', 'V');
-            if (game.Daily.Trigger != TriggerMode.Manual && Capabilities.Id != "generic" && !baseline)
-            {
-                if (game.Daily.Trigger == TriggerMode.VerifiedCommand) errors.Add("本机版本不同于适配基线，请选择已核实的自定义命令或半自动方式");
-                if (game.Daily.Completion == CompletionMode.AdapterEvidence) errors.Add("不同版本请配置已核实的日志规则或人工判定");
-            }
             if (game.Daily.Trigger != TriggerMode.Manual && game.Daily.Completion == CompletionMode.LogRules)
             {
                 if (new[] { game.Daily.StartPattern, game.Daily.SuccessPattern, game.Daily.FailurePattern }.Any(string.IsNullOrWhiteSpace)) errors.Add("日志规则需要开始、成功和失败三种正则表达式");

@@ -29,8 +29,6 @@ public sealed partial class MainWindow : Window
             if (e.PropertyName == nameof(MainViewModel.SelectedPage))
                 Navigation.SelectedItem = ViewModel.SelectedPage == "settings" ? Navigation.SettingsItem
                     : Navigation.MenuItems.OfType<NavigationViewItem>().FirstOrDefault(item => item.Tag?.ToString() == ViewModel.SelectedPage);
-            if (e.PropertyName is nameof(MainViewModel.SelectedGame) or nameof(MainViewModel.SelectedToolPath) or nameof(MainViewModel.SelectedAdapterId) && ViewModel.SelectedGame is { } game)
-                VerificationExpander.IsExpanded = !game.Config.Daily.SafeSettingsConfirmed || (game.Config.Daily.Trigger != Core.Models.TriggerMode.Manual && !game.Config.Daily.VersionConfirmed);
         };
         AppWindow.Resize(new global::Windows.Graphics.SizeInt32(1440, 980));
         RootGrid.Loaded += (_, _) =>
@@ -98,14 +96,6 @@ public sealed partial class MainWindow : Window
         // Replace the selection notification so classic bindings re-read the changed path.
         ViewModel.SelectedGame = null; ViewModel.SelectedGame = game; game.Refresh();
     }
-    private void Reverify_Click(object sender, RoutedEventArgs args)
-    {
-        if (ViewModel.SelectedGame is not { } game) return;
-        game.Config.Daily.VersionConfirmed = false;
-        game.Config.Daily.VerifiedFileStamp = "";
-        ViewModel.RefreshConfigurationOptions();
-        ViewModel.Show("请核对新版本与入口，勾选确认后保存即可。");
-    }
     private async void Startup_Toggled(object sender, RoutedEventArgs args)
     {
         if (!InitializationSucceeded || _applyingStartup) return;
@@ -146,7 +136,7 @@ public sealed partial class MainWindow : Window
         ViewModel.SelectedCompletion = Core.Models.CompletionMode.LogRules;
         if (ViewModel.CustomArgumentsVisibility != Visibility.Visible || ViewModel.LogRulesVisibility != Visibility.Visible) throw new InvalidOperationException("自定义设置未按需显示");
         ViewModel.SelectedTrigger = Core.Models.TriggerMode.Manual;
-        if (ViewModel.AutomaticVisibility != Visibility.Collapsed) throw new InvalidOperationException("手动执行应隐藏自动核验与结果规则");
+        if (ViewModel.AutomaticVisibility != Visibility.Collapsed) throw new InvalidOperationException("手动执行应隐藏自动参数与结果规则");
         ViewModel.SelectedTrigger = Core.Models.TriggerMode.VerifiedCommand;
         ViewModel.SelectedCompletion = Core.Models.CompletionMode.AdapterEvidence;
         ViewModel.SelectedGame = ViewModel.Games[0];

@@ -38,12 +38,6 @@ public sealed record ProcessIdentity(int Pid, long CreatedFileTime, string Path,
 public sealed class ProcessService
 {
     public static string Normalize(string path) => Path.GetFullPath(Environment.ExpandEnvironmentVariables(path.Trim().Trim('"')));
-    public static string FileStamp(string path)
-    {
-        if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) return "";
-        var info = new FileInfo(Normalize(path));
-        return $"{info.FullName.ToUpperInvariant()}|{info.Length}|{info.LastWriteTimeUtc.Ticks}";
-    }
     public IReadOnlyList<ProcessIdentity> FindRunning(string path)
     {
         if (string.IsNullOrWhiteSpace(path)) return [];

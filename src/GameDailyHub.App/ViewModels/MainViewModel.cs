@@ -88,7 +88,6 @@ public partial class MainViewModel : ObservableObject
     public Visibility ConfirmationVisibility => AwaitingConfirmation ? Visibility.Visible : Visibility.Collapsed;
     public string DataDirectory => _store.Root;
     public string ActualLogDirectory => _journal?.LogDirectory ?? Path.Combine(_store.Root, "logs");
-    public string AdapterDescription => SelectedGame is null ? "请选择游戏" : _adapters.Get(SelectedGame.Config.AdapterId).Capabilities.BaselineVersion;
     public string? SelectedAdapterId
     {
         get => SelectedGame?.Config.AdapterId;
@@ -97,10 +96,6 @@ public partial class MainViewModel : ObservableObject
             if (SelectedGame is null || value is null || value == SelectedGame.Config.AdapterId) return;
             SelectedGame.Config.AdapterId = value;
             SelectedGame.Config.ToolName = value switch { "bettergi" => "BetterGI", "march7th" => "March7thAssistant", "okww" => "OK-WW", _ => "自定义助手" };
-            SelectedGame.Config.Daily.VersionConfirmed = false;
-            SelectedGame.Config.Daily.VerifiedFileStamp = "";
-            SelectedGame.Config.Daily.VerifiedVersion = "";
-            SelectedGame.Config.Daily.SafeSettingsConfirmed = false;
             SelectedGame.Config.Daily.Trigger = value == "generic" ? TriggerMode.Manual : TriggerMode.VerifiedCommand;
             SelectedGame.Config.Daily.Completion = value == "generic" ? CompletionMode.Manual : CompletionMode.AdapterEvidence;
             ConfigurationSuggestions.Apply(SelectedGame.Config);
@@ -129,7 +124,6 @@ public partial class MainViewModel : ObservableObject
     public string ToolPathPlaceholder => SelectedGame?.Config.AdapterId == "generic" ? "选择助手 .exe" : "留空使用默认安装位置";
     public Visibility SelectionVisibility => SelectedGame is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility EmptySelectionVisibility => SelectedGame is null ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility ReverificationVisibility => string.IsNullOrWhiteSpace(SelectedGame?.Config.Daily.VerifiedFileStamp) ? Visibility.Collapsed : Visibility.Visible;
     public string SelectedToolPath
     {
         get => SelectedGame?.Config.ToolPath ?? "";
@@ -137,14 +131,10 @@ public partial class MainViewModel : ObservableObject
         {
             if (SelectedGame is not { } game || game.Config.ToolPath == value) return;
             game.Config.ToolPath = value;
-            game.Config.Daily.VersionConfirmed = false;
-            game.Config.Daily.VerifiedFileStamp = "";
-            game.Config.Daily.SafeSettingsConfirmed = false;
             ConfigurationSuggestions.Apply(game.Config);
             RefreshConfigurationOptions();
         }
     }
-    public string VerificationHint => SelectedGame?.Config.AdapterId == "generic" ? "请核对此助手的版本、命令入口与日志格式。" : "内置适配版本：" + AdapterDescription + "。版本不同时，可在更多选项中改用自定义命令或手动执行。";
     public string ExecutionSummary => SelectedTrigger == TriggerMode.Manual ? "在助手内开始任务，完成后回到这里确认结果。" : SelectedGame is { } game
         ? $"每项超时 {game.Config.Daily.TimeoutMinutes:g} 分钟，失败重试 {game.Config.Daily.RetryCount} 次。" + (game.Config.Daily.ContinueOnFailure ? "明确失败后继续下一项。" : "明确失败后停止队列。")
         : "选择游戏后即可设置。";
@@ -173,7 +163,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             SelectedGame?.Refresh();
-            foreach (var name in new[] { nameof(SelectedAdapterId), nameof(SelectedTrigger), nameof(SelectedCompletion), nameof(ProfileVisibility), nameof(AutomaticVisibility), nameof(CustomArgumentsVisibility), nameof(LogRulesVisibility), nameof(March7thVisibility), nameof(ProfileHeader), nameof(ProfileHint), nameof(ToolPathHeader), nameof(ToolPathPlaceholder), nameof(SelectedToolPath), nameof(SelectionVisibility), nameof(EmptySelectionVisibility), nameof(ReverificationVisibility), nameof(VerificationHint), nameof(ExecutionSummary), nameof(AdapterDescription) }) OnPropertyChanged(name);
+            foreach (var name in new[] { nameof(SelectedAdapterId), nameof(SelectedTrigger), nameof(SelectedCompletion), nameof(ProfileVisibility), nameof(AutomaticVisibility), nameof(CustomArgumentsVisibility), nameof(LogRulesVisibility), nameof(March7thVisibility), nameof(ProfileHeader), nameof(ProfileHint), nameof(ToolPathHeader), nameof(ToolPathPlaceholder), nameof(SelectedToolPath), nameof(SelectionVisibility), nameof(EmptySelectionVisibility), nameof(ExecutionSummary) }) OnPropertyChanged(name);
         }
         finally { _refreshingOptions = false; }
     }
@@ -199,7 +189,7 @@ public partial class MainViewModel : ObservableObject
     {
         _dispatcher = dispatcher;
         SelectedPage = "home";
-        Message = "首次使用：进入游戏设置，选择游戏和助手，完成运行前确认即可。";
+        Message = "首次使用：进入游戏设置，选择游戏和助手后保存配置。";
         HasMessage = true;
         CurrentTask = "准备就绪";
         ProgressText = "尚未开始批次";
@@ -275,12 +265,7 @@ public partial class MainViewModel : ObservableObject
     }
     private async Task SaveAsync()
     {
-        foreach (var game in _config.Games)
-        {
-            ConfigurationSuggestions.Apply(game);
-            if (!game.Daily.VersionConfirmed) game.Daily.VerifiedFileStamp = "";
-            else if (string.IsNullOrWhiteSpace(game.Daily.VerifiedFileStamp)) game.Daily.VerifiedFileStamp = ProcessService.FileStamp(game.ToolPath);
-        }
+        foreach (var game in _config.Games) ConfigurationSuggestions.Apply(game);
         await _store.SaveAsync(_config);
         _savedConfig = _config.Clone();
         foreach (var g in Games) { g.Refresh(); await RefreshCardAsync(g); }

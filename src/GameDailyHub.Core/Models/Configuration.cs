@@ -31,10 +31,6 @@ public sealed class DailyTaskProfile
     public double TimeoutMinutes { get; set; } = 60;
     public int RetryCount { get; set; }
     public bool ContinueOnFailure { get; set; } = true;
-    public string VerifiedVersion { get; set; } = "";
-    public bool VersionConfirmed { get; set; }
-    public string VerifiedFileStamp { get; set; } = "";
-    public bool SafeSettingsConfirmed { get; set; }
 }
 
 public sealed class GameConfig

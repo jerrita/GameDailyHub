@@ -94,8 +94,8 @@ public sealed class ConfigurationStore(string root)
         {
             if (g.Id == Guid.Empty || string.IsNullOrWhiteSpace(g.Name) || g.Normal is null || g.Daily is null || !new[] { "bettergi", "march7th", "okww", "generic" }.Contains(g.AdapterId))
                 throw new InvalidDataException("游戏信息不完整或适配器无效");
-            if (new[] { g.GamePath, g.LauncherPath, g.ToolPath, g.ToolGuiPath, g.ToolConfigPath, g.Normal.Arguments, g.Normal.WorkingDirectory, g.Daily.Arguments, g.Daily.ProfileName, g.Daily.LogPath, g.Daily.WorkingDirectory, g.Daily.VerifiedVersion, g.Daily.VerifiedFileStamp }.Any(s => s is null))
-                throw new InvalidDataException("路径、参数及核验字段须为字符串");
+            if (new[] { g.GamePath, g.LauncherPath, g.ToolPath, g.ToolGuiPath, g.ToolConfigPath, g.Normal.Arguments, g.Normal.WorkingDirectory, g.Daily.Arguments, g.Daily.ProfileName, g.Daily.LogPath, g.Daily.WorkingDirectory }.Any(s => s is null))
+                throw new InvalidDataException("路径及参数须为字符串");
             if (!double.IsFinite(g.Daily.TimeoutMinutes) || g.Daily.TimeoutMinutes <= 0 || g.Daily.TimeoutMinutes > 1440 || g.Daily.RetryCount is < 0 or > 10)
                 throw new InvalidDataException(g.Name + "：超时须在 0–1440 分钟内，重试须在 0–10 次内");
             if (!Enum.IsDefined(g.Normal.Target) || !Enum.IsDefined(g.Daily.Trigger) || !Enum.IsDefined(g.Daily.Completion)) throw new InvalidDataException("枚举配置无效");

@@ -113,19 +113,6 @@
                                     <TextBox Header="{x:Bind ViewModel.ProfileHeader, Mode=OneWay}" Text="{Binding SelectedGame.Config.Daily.ProfileName, Mode=TwoWay}"/>
                                     <TextBlock Text="{x:Bind ViewModel.ProfileHint, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
-                                <Expander x:Name="VerificationExpander" Header="运行前确认" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
-                                    <StackPanel Spacing="14">
-                                        <TextBlock Text="首次设置或助手更新后，核对一次即可。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                        <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.AutomaticVisibility, Mode=OneWay}">
-                                            <TextBox Header="已核验的助手版本" Text="{Binding SelectedGame.Config.Daily.VerifiedVersion, Mode=TwoWay}"/>
-                                            <TextBlock Text="{x:Bind ViewModel.VerificationHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                            <CheckBox Content="已核对此版本的命令入口与日志格式" IsChecked="{Binding SelectedGame.Config.Daily.VersionConfirmed, Mode=TwoWay}"/>
-                                            <Button Content="重新核验更新后的助手" Click="Reverify_Click" Visibility="{x:Bind ViewModel.ReverificationVisibility, Mode=OneWay}"/>
-                                        </StackPanel>
-                                        <CheckBox Content="已关闭助手内的自动计划、开机执行、循环与关机操作" IsChecked="{Binding SelectedGame.Config.Daily.SafeSettingsConfirmed, Mode=TwoWay}"/>
-                                        <TextBlock Text="March7th 还需设置：after_finish=None、pause_after_success=false、exit_after_failure=true。" TextWrapping="Wrap" Visibility="{x:Bind ViewModel.March7thVisibility, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                    </StackPanel>
-                                </Expander>
                                 <TextBlock Text="{x:Bind ViewModel.ExecutionSummary, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <Expander x:Name="AdvancedOptions" Header="更多选项" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                     <StackPanel Spacing="20">
