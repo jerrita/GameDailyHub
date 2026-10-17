@@ -16,7 +16,7 @@ public sealed partial class MainWindow : Window
 {
     public MainViewModel ViewModel { get; }
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
-    private bool _tickBusy, _closingPrompt, _applyingStartup;
+    private bool _tickBusy, _closingPrompt, _applyingStartup, _closeReady;
     public bool InitializationSucceeded { get; private set; }
     public MainWindow()
     {
@@ -70,17 +70,23 @@ public sealed partial class MainWindow : Window
     }
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (ViewModel.IsIdle) return;
+        if (_closeReady) return;
         args.Cancel = true;
         if (_closingPrompt) return;
         _closingPrompt = true;
         try
         {
-            var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "操作正在运行", Content = "停止当前操作并等待清理后，再关闭应用。", PrimaryButtonText = "停止操作", CloseButtonText = "继续运行", DefaultButton = ContentDialogButton.Close };
+            if (ViewModel.IsIdle)
+            {
+                await ViewModel.SaveIfChangedAsync();
+                _closeReady = true; Close();
+                return;
+            }
+            var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "任务仍在运行", Content = "停止当前任务后才能关闭应用。", PrimaryButtonText = "停止任务", CloseButtonText = "继续运行", DefaultButton = ContentDialogButton.Close };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 ViewModel.RequestStop(); ViewModel.SelectedPage = "home";
-                ViewModel.Show("正在停止。请等待队列结束；如需人工确认，请处理后再关闭窗口。");
+                ViewModel.Show("正在停止。如需确认结果，请先完成确认再关闭窗口。");
             }
         }
         finally { _closingPrompt = false; }
@@ -98,6 +104,16 @@ public sealed partial class MainWindow : Window
         else typeof(Core.Models.GameConfig).GetProperty(property)!.SetValue(game.Config, path);
         // Replace the selection notification so classic bindings re-read the changed path.
         ViewModel.SelectedGame = null; ViewModel.SelectedGame = game; game.Refresh();
+    }
+    private void Theme_Changed(object sender, SelectionChangedEventArgs args)
+    {
+        if (InitializationSucceeded) ViewModel.ApplyTheme();
+    }
+    private async void RemoveGame_Click(object sender, RoutedEventArgs args)
+    {
+        if (ViewModel.SelectedGame is not { } game) return;
+        var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "移除「" + game.Name + "」？", Content = "该游戏及其队列任务将被移除。", PrimaryButtonText = "移除", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Close };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.RemoveGameCommand.Execute(null);
     }
     private async void Startup_Toggled(object sender, RoutedEventArgs args)
     {

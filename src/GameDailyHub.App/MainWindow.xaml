@@ -20,11 +20,11 @@
                 </StackPanel>
             </NavigationView.PaneHeader>
             <NavigationView.MenuItems>
-                <NavigationViewItem Content="游戏总览" Tag="home" Icon="Home" IsSelected="True"/>
-                <NavigationViewItem Content="任务管理" Tag="tasks" Icon="List"/>
-                <NavigationViewItem Content="游戏设置" Tag="config" Icon="Setting"/>
-                <NavigationViewItem Content="运行日志" Tag="logs" Icon="Document"/>
-                <NavigationViewItem Content="定时任务" Tag="schedule" Icon="Clock"/>
+                <NavigationViewItem Content="总览" Tag="home" Icon="Home" IsSelected="True"/>
+                <NavigationViewItem Content="任务队列" Tag="tasks" Icon="List"/>
+                <NavigationViewItem Content="游戏" Tag="config" Icon="Setting"/>
+                <NavigationViewItem Content="日志" Tag="logs" Icon="Document"/>
+                <NavigationViewItem Content="定时" Tag="schedule" Icon="Clock"/>
             </NavigationView.MenuItems>
             <Grid Padding="28,12,28,20" RowSpacing="16">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
@@ -32,32 +32,31 @@
                 <ScrollViewer x:Name="PageScroll" Grid.Row="1" Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <Grid>
                         <StackPanel Spacing="20" Visibility="{x:Bind ViewModel.HomeVisibility, Mode=OneWay}">
-                            <StackPanel><TextBlock Text="游戏总览" Style="{ThemeResource TitleTextBlockStyle}"/><TextBlock Text="集中管理游戏与助手，按需启动或依次完成日常。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,8,0,0"/></StackPanel>
+                            <StackPanel><TextBlock Text="总览" Style="{ThemeResource TitleTextBlockStyle}"/><TextBlock Text="打开游戏与助手，或一键完成今日日常。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,8,0,0"/></StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="10">
                                 <Button Content="开始全部日常" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind ViewModel.RunAllCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
-                                <Button Content="停止任务" Command="{x:Bind ViewModel.StopCommand}" IsEnabled="{x:Bind ViewModel.IsBusy, Mode=OneWay}"/>
-                                <Button Content="跳过当前任务" Command="{x:Bind ViewModel.SkipCommand}" IsEnabled="{x:Bind ViewModel.IsBusy, Mode=OneWay}"/>
+                                <Button Content="停止" Command="{x:Bind ViewModel.StopCommand}" Visibility="{x:Bind ViewModel.BusyVisibility, Mode=OneWay}"/>
+                                <Button Content="跳过当前" Command="{x:Bind ViewModel.SkipCommand}" Visibility="{x:Bind ViewModel.BusyVisibility, Mode=OneWay}"/>
                             </StackPanel>
                             <GridView ItemsSource="{x:Bind ViewModel.Games}" SelectionMode="None" IsItemClickEnabled="False" HorizontalContentAlignment="Stretch">
                                 <GridView.ItemsPanel><ItemsPanelTemplate><ItemsWrapGrid Orientation="Horizontal"/></ItemsPanelTemplate></GridView.ItemsPanel>
                                 <GridView.ItemTemplate>
                                     <DataTemplate x:DataType="vm:GameCardViewModel">
-                                        <Border Width="300" Height="352" Padding="18" Margin="0,0,10,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12">
+                                        <Border Width="300" Height="270" Padding="18" Margin="0,0,10,10" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="12">
                                             <StackPanel Spacing="12">
                                                 <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="48"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
                                                     <Border Background="{ThemeResource AccentFillColorDefaultBrush}" CornerRadius="10" Height="48"><TextBlock Text="{x:Bind Glyph}" FontSize="30" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center"/></Border>
                                                     <StackPanel Grid.Column="1" VerticalAlignment="Center"><TextBlock Text="{x:Bind Name, Mode=OneWay}" FontSize="19" FontWeight="SemiBold"/><TextBlock Text="{x:Bind ToolName, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/></StackPanel>
                                                 </Grid>
                                                 <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Text="{x:Bind ProcessStatus, Mode=OneWay}" FontWeight="SemiBold"/><TextBlock Text="{x:Bind DailyStatus, Mode=OneWay}" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}"/></StackPanel>
-                                                <StackPanel Spacing="4"><TextBlock Text="{x:Bind GamePathStatus, Mode=OneWay}"/><TextBlock Text="{x:Bind ToolPathStatus, Mode=OneWay}"/></StackPanel>
-                                                <TextBlock Text="{x:Bind LastRun, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
-                                                <TextBlock Text="{x:Bind ConfigurationStatus, Mode=OneWay}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="12" MinHeight="34" Foreground="{ThemeResource TextFillColorSecondaryBrush}" ToolTipService.ToolTip="{x:Bind ConfigurationStatus, Mode=OneWay}"/>
+                                                                                                <TextBlock Text="{x:Bind LastRun, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12"/>
+                                                <TextBlock Text="{x:Bind SetupHint, Mode=OneWay}" Visibility="{x:Bind SetupHintVisibility, Mode=OneWay}" TextWrapping="Wrap" MaxLines="2" TextTrimming="CharacterEllipsis" FontSize="12" MinHeight="34" Foreground="{ThemeResource SystemFillColorCautionBrush}" ToolTipService.ToolTip="{x:Bind SetupHint, Mode=OneWay}"/>
                                                 <Grid ColumnSpacing="6"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                                                    <Button Content="启动助手" HorizontalAlignment="Stretch" Padding="8,7" FontSize="13" Command="{x:Bind LaunchAssistantCommand}" IsEnabled="{x:Bind CanLaunch, Mode=OneWay}" ToolTipService.ToolTip="打开助手界面"/>
-                                                    <Button Grid.Column="1" Content="启动游戏" HorizontalAlignment="Stretch" Padding="8,7" FontSize="13" Command="{x:Bind LaunchGameCommand}" IsEnabled="{x:Bind CanLaunch, Mode=OneWay}" ToolTipService.ToolTip="打开游戏客户端"/>
-                                                    <Button Grid.Column="2" Content="自动助手" HorizontalAlignment="Stretch" Padding="8,7" FontSize="13" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind RunCommand}" IsEnabled="{x:Bind CanRun, Mode=OneWay}" ToolTipService.ToolTip="按日常配置执行助手任务"/>
+                                                    <Button Content="助手" HorizontalAlignment="Stretch" Padding="8,7" FontSize="13" Command="{x:Bind LaunchAssistantCommand}" IsEnabled="{x:Bind CanLaunch, Mode=OneWay}" ToolTipService.ToolTip="打开助手界面"/>
+                                                    <Button Grid.Column="1" Content="游戏" HorizontalAlignment="Stretch" Padding="8,7" FontSize="13" Command="{x:Bind LaunchGameCommand}" IsEnabled="{x:Bind CanLaunch, Mode=OneWay}" ToolTipService.ToolTip="打开游戏客户端"/>
+                                                    <Button Grid.Column="2" Content="运行日常" HorizontalAlignment="Stretch" Padding="8,7" FontSize="13" Style="{ThemeResource AccentButtonStyle}" Command="{x:Bind RunCommand}" IsEnabled="{x:Bind CanRun, Mode=OneWay}" ToolTipService.ToolTip="用助手完成这个游戏的日常"/>
                                                 </Grid>
-                                                <HyperlinkButton Content="游戏设置" Padding="0" Command="{x:Bind ConfigureCommand}"/>
+                                                <HyperlinkButton Content="设置" Padding="0" Command="{x:Bind ConfigureCommand}"/>
                                             </StackPanel>
                                         </Border>
                                     </DataTemplate>
@@ -73,17 +72,17 @@
                                 </StackPanel>
                             </Border>
                             <Border Padding="20" CornerRadius="10" BorderThickness="1" BorderBrush="{ThemeResource AccentFillColorDefaultBrush}" Visibility="{x:Bind ViewModel.ConfirmationVisibility, Mode=OneWay}">
-                                <StackPanel Spacing="12"><TextBlock Text="需要人工确认" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="查看助手与日志，确认本轮结果。半自动模式请先在助手内执行任务。" TextWrapping="Wrap"/><CheckBox Content="我已确认当前自动化任务停止" IsChecked="{x:Bind ViewModel.ConfirmedStopped, Mode=TwoWay}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="确认成功" Command="{x:Bind ViewModel.ConfirmSuccessCommand}"/><Button Content="确认失败" Command="{x:Bind ViewModel.ConfirmFailureCommand}"/><Button Content="确认跳过" Command="{x:Bind ViewModel.ConfirmSkipCommand}"/></StackPanel></StackPanel>
+                                <StackPanel Spacing="12"><TextBlock Text="请确认结果" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="查看助手与日志，告诉我本轮结果。" TextWrapping="Wrap"/><CheckBox Content="助手已停止运行" IsChecked="{x:Bind ViewModel.ConfirmedStopped, Mode=TwoWay}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="成功" Command="{x:Bind ViewModel.ConfirmSuccessCommand}"/><Button Content="失败" Command="{x:Bind ViewModel.ConfirmFailureCommand}"/><Button Content="跳过" Command="{x:Bind ViewModel.ConfirmSkipCommand}"/></StackPanel></StackPanel>
                             </Border>
                             <TextBlock Text="实时日志" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                             <views:LogOutputView x:Name="HomeLogOutput" Lines="{x:Bind ViewModel.LogLines}" Height="230"/>
                         </StackPanel>
 
                         <StackPanel Spacing="18" Visibility="{x:Bind ViewModel.TasksVisibility, Mode=OneWay}">
-                            <TextBlock Text="任务管理" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <TextBlock Text="任务按列表顺序执行。更改后保存配置。"/>
-                            <ComboBox Header="添加任务的游戏" ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" MinWidth="300"/>
-                            <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="添加日常任务" Command="{x:Bind ViewModel.AddTaskCommand}"/><Button Content="上移" Command="{x:Bind ViewModel.MoveUpCommand}"/><Button Content="下移" Command="{x:Bind ViewModel.MoveDownCommand}"/><Button Content="删除任务" Command="{x:Bind ViewModel.RemoveTaskCommand}"/><Button Content="保存配置" Command="{x:Bind ViewModel.SaveCommand}"/></StackPanel>
+                            <TextBlock Text="任务队列" Style="{ThemeResource TitleTextBlockStyle}"/>
+                            <TextBlock Text="已启用的任务按列表顺序依次运行，改动自动保存。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <ComboBox Header="游戏" ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" MinWidth="300"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="添加" Command="{x:Bind ViewModel.AddTaskCommand}"/><Button Content="上移" Command="{x:Bind ViewModel.MoveUpCommand}"/><Button Content="下移" Command="{x:Bind ViewModel.MoveDownCommand}"/><Button Content="删除" Command="{x:Bind ViewModel.RemoveTaskCommand}"/></StackPanel>
                             <ListView ItemsSource="{x:Bind ViewModel.Tasks}" SelectedItem="{x:Bind ViewModel.SelectedTask, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}">
                                 <ListView.ItemTemplate><DataTemplate x:DataType="vm:TaskRowViewModel"><Grid Padding="4,10" ColumnSpacing="18"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><CheckBox Content="启用" IsChecked="{Binding Config.Enabled, Mode=TwoWay}"/><TextBox Grid.Column="1" Text="{Binding Config.Name, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{x:Bind GameName}" VerticalAlignment="Center"/></Grid></DataTemplate></ListView.ItemTemplate>
                             </ListView>
@@ -91,88 +90,87 @@
 
                         <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.ConfigVisibility, Mode=OneWay}">
                             <StackPanel Spacing="8">
-                                <TextBlock Text="游戏设置" Style="{ThemeResource TitleTextBlockStyle}"/>
-                                <TextBlock Text="选好游戏和助手，其余使用合理默认值。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="游戏" Style="{ThemeResource TitleTextBlockStyle}"/>
+                                <TextBlock Text="选择游戏与助手，其余使用默认值，改动自动保存。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </StackPanel>
                             <StackPanel Orientation="Horizontal" Spacing="12">
                                 <ComboBox ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" Width="300"/>
                                 <Button Content="添加游戏" Command="{x:Bind ViewModel.AddGameCommand}"/>
-                                <Button Content="保存" Command="{x:Bind ViewModel.SaveCommand}" Style="{ThemeResource AccentButtonStyle}" MinWidth="100"/>
                             </StackPanel>
-                            <TextBlock Text="添加一款游戏，开始设置。" Visibility="{x:Bind ViewModel.EmptySelectionVisibility, Mode=OneWay}"/>
+                            <TextBlock Text="还没有游戏。点击「添加游戏」开始。" Visibility="{x:Bind ViewModel.EmptySelectionVisibility, Mode=OneWay}"/>
                             <StackPanel Spacing="20" Visibility="{x:Bind ViewModel.SelectionVisibility, Mode=OneWay}">
                                 <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox Header="游戏 · 选择客户端 .exe" PlaceholderText="留空使用默认安装位置" Text="{Binding SelectedGame.Config.GamePath, Mode=TwoWay}"/>
-                                    <Button Grid.Column="1" Content="选择文件" Tag="GamePath" Click="Browse_Click" VerticalAlignment="Bottom"/>
+                                    <TextBox Header="游戏程序" PlaceholderText="留空自动查找" Text="{Binding SelectedGame.Config.GamePath, Mode=TwoWay}"/>
+                                    <Button Grid.Column="1" Content="浏览…" Tag="GamePath" Click="Browse_Click" VerticalAlignment="Bottom"/>
                                 </Grid>
-                                <ComboBox x:Name="SourceModeEditor" Header="助手运行模式" ItemsSource="{x:Bind ViewModel.AssistantRunModes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedRunMode, Mode=TwoWay}" Visibility="{x:Bind ViewModel.RunModeVisibility, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}" HorizontalAlignment="Stretch"/>
+                                <ComboBox x:Name="SourceModeEditor" Header="运行方式" ItemsSource="{x:Bind ViewModel.AssistantRunModes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedRunMode, Mode=TwoWay}" Visibility="{x:Bind ViewModel.RunModeVisibility, Mode=OneWay}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}" HorizontalAlignment="Stretch"/>
                                 <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.SourceVisibility, Mode=OneWay}">
                                     <StackPanel Spacing="12">
-                                        <TextBox x:Name="SourceDirectoryEditor" Header="源码位置（可选）" PlaceholderText="留空使用 GameDailyHub 程序数据位置" Text="{x:Bind ViewModel.SelectedSourceDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
+                                        <TextBox x:Name="SourceDirectoryEditor" Header="源码位置（可选）" PlaceholderText="留空使用默认位置" Text="{x:Bind ViewModel.SelectedSourceDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
                                         <TextBlock Text="{x:Bind ViewModel.SourceDirectoryHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         <TextBlock Text="{x:Bind ViewModel.SourceStatus, Mode=OneWay}" TextWrapping="Wrap"/>
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <Button Content="克隆 / 更新代码" Command="{x:Bind ViewModel.UpdateSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
+                                            <Button Content="获取最新代码" Command="{x:Bind ViewModel.UpdateSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
                                             <Button Content="安装环境" Command="{x:Bind ViewModel.InstallSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
-                                            <Button Content="打开位置" Click="OpenSource_Click" IsEnabled="{x:Bind ViewModel.CanOpenSourceDirectory, Mode=OneWay}"/>
+                                            <Button Content="在文件夹中显示" Click="OpenSource_Click" IsEnabled="{x:Bind ViewModel.CanOpenSourceDirectory, Mode=OneWay}"/>
                                         </StackPanel>
                                     </StackPanel>
                                     <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.SourceBusyVisibility, Mode=OneWay}">
                                         <ProgressBar IsIndeterminate="True"/>
-                                        <Button Content="取消源码操作" Command="{x:Bind ViewModel.CancelSourceCommand}"/>
+                                        <Button Content="取消" Command="{x:Bind ViewModel.CancelSourceCommand}"/>
                                     </StackPanel>
                                     <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.SourceOutputVisibility, Mode=OneWay}">
-                                        <TextBlock Text="命令输出"/>
+                                        <TextBlock Text="输出"/>
                                         <views:LogOutputView Text="{x:Bind ViewModel.SourceOutput, Mode=OneWay}" Height="220"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBox Header="{x:Bind ViewModel.ToolPathHeader, Mode=OneWay}" PlaceholderText="{x:Bind ViewModel.ToolPathPlaceholder, Mode=OneWay}" Text="{x:Bind ViewModel.SelectedToolPath, Mode=TwoWay}"/>
-                                    <Button Grid.Column="1" Content="选择文件" Tag="ToolPath" Click="Browse_Click" VerticalAlignment="Bottom"/>
+                                    <Button Grid.Column="1" Content="浏览…" Tag="ToolPath" Click="Browse_Click" VerticalAlignment="Bottom"/>
                                 </Grid>
                                 <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.ProfileVisibility, Mode=OneWay}">
                                     <TextBox Header="{x:Bind ViewModel.ProfileHeader, Mode=OneWay}" Text="{Binding SelectedGame.Config.Daily.ProfileName, Mode=TwoWay}"/>
                                     <TextBlock Text="{x:Bind ViewModel.ProfileHint, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 </StackPanel>
                                 <TextBlock Text="{x:Bind ViewModel.ExecutionSummary, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <Expander x:Name="AdvancedOptions" Header="更多选项" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <Expander x:Name="AdvancedOptions" Header="高级" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                     <StackPanel Spacing="20">
                                         <StackPanel Spacing="12">
                                             <TextBlock Text="游戏信息" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                                             <TextBox Header="游戏名称" Text="{Binding SelectedGame.Config.Name, Mode=TwoWay}"/>
-                                            <ComboBox Header="使用的助手" ItemsSource="{x:Bind ViewModel.AdapterIds}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedAdapterId, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                                            <Button Content="移除此游戏" Command="{x:Bind ViewModel.RemoveGameCommand}"/>
+                                            <ComboBox Header="助手类型" ItemsSource="{x:Bind ViewModel.AdapterIds}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedAdapterId, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+                                            <Button Content="移除游戏" Click="RemoveGame_Click"/>
                                         </StackPanel>
                                         <StackPanel Spacing="8">
-                                            <TextBlock Text="助手配置复用" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入助手配置" Click="ImportAssistant_Click"/><Button Content="导出助手配置" Click="ExportAssistant_Click"/></StackPanel>
-                                            <TextBlock Text="导出助手自身的配置文件（BetterGI 的 User 配置与一条龙、March7th 的 config.yaml、OK-WW 的 configs）及 Hub 中的日常执行方式。导入时保留本机路径，覆盖前自动备份；助手须已关闭。文件可能含通知密钥等敏感信息。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="助手配置" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入…" Click="ImportAssistant_Click"/><Button Content="导出…" Click="ExportAssistant_Click"/></StackPanel>
+                                            <TextBlock Text="导出助手自身的配置与日常运行设置，便于在其他电脑或重装后恢复。导入时保留本机路径并自动备份原文件，需先关闭助手。导出文件可能含通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
-                                        <Expander Header="启动方式" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                        <Expander Header="启动选项" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                             <StackPanel Spacing="14">
-                                                <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="助手界面入口（可选；March7th 同目录自动识别）" Text="{Binding SelectedGame.Config.ToolGuiPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="选择文件" Tag="ToolGuiPath" Click="Browse_Click" VerticalAlignment="Bottom"/></Grid>
+                                                <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="助手界面程序（可选）" Text="{Binding SelectedGame.Config.ToolGuiPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="浏览…" Tag="ToolGuiPath" Click="Browse_Click" VerticalAlignment="Bottom"/></Grid>
                                                 <TextBox x:Name="NormalArgumentsEditor" Header="游戏启动参数（可选）" Text="{Binding SelectedGame.Config.Normal.Arguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <TextBox Header="游戏工作目录（留空自动使用游戏目录）" Text="{Binding SelectedGame.Config.Normal.WorkingDirectory, Mode=TwoWay}"/>
+                                                <TextBox Header="游戏工作目录（可选）" Text="{Binding SelectedGame.Config.Normal.WorkingDirectory, Mode=TwoWay}"/>
                                             </StackPanel>
                                         </Expander>
-                                        <Expander Header="日常执行方式" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                        <Expander Header="日常运行" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                             <StackPanel Spacing="14">
-                                                <ComboBox Header="开始任务" ItemsSource="{x:Bind ViewModel.TriggerModes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedTrigger, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                                                <TextBox x:Name="DailyArgumentsEditor" Header="自定义命令参数" Visibility="{x:Bind ViewModel.CustomArgumentsVisibility, Mode=OneWay}" Text="{Binding SelectedGame.Config.Daily.Arguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
-                                                <TextBox Header="工作目录（留空自动使用助手目录）" Text="{Binding SelectedGame.Config.Daily.WorkingDirectory, Mode=TwoWay}" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"/>
-                                                <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.March7thVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="助手配置文件（留空读取同目录 config.yaml）" Text="{Binding SelectedGame.Config.ToolConfigPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="选择文件" Tag="ToolConfigPath" Click="Browse_Click" VerticalAlignment="Bottom"/></Grid>
-                                                <StackPanel Orientation="Horizontal" Spacing="16"><NumberBox x:Name="TimeoutEditor" Header="超时（分钟）" Value="{Binding SelectedGame.Config.Daily.TimeoutMinutes, Mode=TwoWay}" Minimum="0.01" Maximum="1440" Width="180"/><NumberBox x:Name="RetryEditor" Header="失败重试次数" Value="{Binding SelectedGame.Config.Daily.RetryCount, Mode=TwoWay}" Minimum="0" Maximum="10" SmallChange="1" Width="180"/></StackPanel>
-                                                <CheckBox Content="明确失败后继续下一项" IsChecked="{Binding SelectedGame.Config.Daily.ContinueOnFailure, Mode=TwoWay}"/>
+                                                <ComboBox Header="开始方式" ItemsSource="{x:Bind ViewModel.TriggerModes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedTrigger, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+                                                <TextBox x:Name="DailyArgumentsEditor" Header="命令参数" Visibility="{x:Bind ViewModel.CustomArgumentsVisibility, Mode=OneWay}" Text="{Binding SelectedGame.Config.Daily.Arguments, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"/>
+                                                <TextBox Header="助手工作目录（可选）" Text="{Binding SelectedGame.Config.Daily.WorkingDirectory, Mode=TwoWay}" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"/>
+                                                <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.March7thVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="助手配置文件（可选）" Text="{Binding SelectedGame.Config.ToolConfigPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="浏览…" Tag="ToolConfigPath" Click="Browse_Click" VerticalAlignment="Bottom"/></Grid>
+                                                <StackPanel Orientation="Horizontal" Spacing="16"><NumberBox x:Name="TimeoutEditor" Header="超时（分钟）" Value="{Binding SelectedGame.Config.Daily.TimeoutMinutes, Mode=TwoWay}" Minimum="0.01" Maximum="1440" Width="180"/><NumberBox x:Name="RetryEditor" Header="失败重试" Value="{Binding SelectedGame.Config.Daily.RetryCount, Mode=TwoWay}" Minimum="0" Maximum="10" SmallChange="1" Width="180"/></StackPanel>
+                                                <CheckBox Content="失败后继续下一项" IsChecked="{Binding SelectedGame.Config.Daily.ContinueOnFailure, Mode=TwoWay}"/>
                                             </StackPanel>
                                         </Expander>
-                                        <Expander Header="结果与日志" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Visibility="{x:Bind ViewModel.AutomaticVisibility, Mode=OneWay}">
+                                        <Expander Header="结果判定" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" Visibility="{x:Bind ViewModel.AutomaticVisibility, Mode=OneWay}">
                                             <StackPanel Spacing="14">
-                                                <ComboBox Header="确认结果" ItemsSource="{x:Bind ViewModel.CompletionModes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedCompletion, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                                                <TextBox Header="日志路径（留空自动查找；支持文件名通配符）" Text="{Binding SelectedGame.Config.Daily.LogPath, Mode=TwoWay}"/>
+                                                <ComboBox Header="判定方式" ItemsSource="{x:Bind ViewModel.CompletionModes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedCompletion, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
+                                                <TextBox Header="助手日志路径（可选，支持通配符）" Text="{Binding SelectedGame.Config.Daily.LogPath, Mode=TwoWay}"/>
                                                 <StackPanel Spacing="12" Visibility="{x:Bind ViewModel.LogRulesVisibility, Mode=OneWay}">
-                                                    <TextBox Header="开始正则" Text="{Binding SelectedGame.Config.Daily.StartPattern, Mode=TwoWay}"/>
-                                                    <TextBox Header="成功正则" Text="{Binding SelectedGame.Config.Daily.SuccessPattern, Mode=TwoWay}"/>
-                                                    <TextBox Header="失败正则" Text="{Binding SelectedGame.Config.Daily.FailurePattern, Mode=TwoWay}"/>
+                                                    <TextBox Header="开始标志（正则表达式）" Text="{Binding SelectedGame.Config.Daily.StartPattern, Mode=TwoWay}"/>
+                                                    <TextBox Header="成功标志（正则表达式）" Text="{Binding SelectedGame.Config.Daily.SuccessPattern, Mode=TwoWay}"/>
+                                                    <TextBox Header="失败标志（正则表达式）" Text="{Binding SelectedGame.Config.Daily.FailurePattern, Mode=TwoWay}"/>
                                                 </StackPanel>
                                             </StackPanel>
                                         </Expander>
@@ -181,38 +179,36 @@
                             </StackPanel>
                         </StackPanel>
                         <StackPanel Spacing="16" Visibility="{x:Bind ViewModel.LogsVisibility, Mode=OneWay}">
-                            <TextBlock Text="运行日志" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="10"><ComboBox ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" Width="210"/><CheckBox Content="按此游戏筛选" IsChecked="{x:Bind ViewModel.FilterBySelectedGame, Mode=TwoWay}"/><TextBox PlaceholderText="批次完整 GUID（留空为全部）" Text="{x:Bind ViewModel.BatchFilter, Mode=TwoWay}" Width="310"/><Button Content="查询 / 刷新" Command="{x:Bind ViewModel.RefreshHistoryCommand}"/></StackPanel>
+                            <TextBlock Text="日志" Style="{ThemeResource TitleTextBlockStyle}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="10"><ComboBox ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" Width="210"/><CheckBox Content="仅此游戏" IsChecked="{x:Bind ViewModel.FilterBySelectedGame, Mode=TwoWay}"/><Button Content="刷新" Command="{x:Bind ViewModel.RefreshHistoryCommand}"/></StackPanel>
                             <ListView ItemsSource="{x:Bind ViewModel.History}" SelectedItem="{x:Bind ViewModel.SelectedHistory, Mode=TwoWay}" Height="270"><ListView.ItemTemplate><DataTemplate x:DataType="vm:HistoryRowViewModel"><StackPanel Padding="4,8" Spacing="5"><TextBlock Text="{x:Bind Title}" FontWeight="SemiBold"/><TextBlock Text="{x:Bind Subtitle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></DataTemplate></ListView.ItemTemplate></ListView>
                             <TextBox Text="{x:Bind ViewModel.HistoryDetails, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="210" FontFamily="Consolas" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
-                            <TextBlock Text="本次会话实时日志" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                            <TextBlock Text="实时日志" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                             <views:LogOutputView Lines="{x:Bind ViewModel.LogLines}" Height="250"/>
                         </StackPanel>
 
                         <StackPanel Spacing="20" MaxWidth="720" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.ScheduleVisibility, Mode=OneWay}">
-                            <TextBlock Text="定时任务" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <TextBlock Text="每日计划执行任务管理中所有启用的任务，复用同一串行队列。应用保持运行时生效。" TextWrapping="Wrap"/>
-                            <ToggleSwitch Header="每日执行" IsOn="{x:Bind ViewModel.ScheduleEnabled, Mode=TwoWay}" OnContent="已启用" OffContent="已关闭"/>
-                            <TimePicker x:Name="ScheduleTimeEditor" Header="执行时间" Time="{x:Bind ViewModel.ScheduleTime, Mode=TwoWay}" ClockIdentifier="24HourClock" IsEnabled="{x:Bind ViewModel.ScheduleEnabled, Mode=OneWay}" HorizontalAlignment="Left"/>
-                            <Expander Header="时区" HorizontalAlignment="Stretch"><StackPanel Spacing="12"><TextBlock Text="{x:Bind ViewModel.ScheduleTimeZone, Mode=OneWay}"/><TextBox Header="Windows 时区 ID" Text="{Binding Config.Schedule.TimeZoneId, Mode=TwoWay}"/></StackPanel></Expander>
-                            <TextBlock Text="默认北京时间。忙碌时跳过当天计划；应用关闭或休眠错过后不补跑。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <Button Content="保存每日计划" Command="{x:Bind ViewModel.SaveCommand}" Style="{ThemeResource AccentButtonStyle}"/>
+                            <TextBlock Text="定时" Style="{ThemeResource TitleTextBlockStyle}"/>
+                            <TextBlock Text="每天在设定时间运行任务队列中所有已启用的任务。应用需保持运行。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            <ToggleSwitch Header="每日自动运行" IsOn="{x:Bind ViewModel.ScheduleEnabled, Mode=TwoWay}" OnContent="开" OffContent="关"/>
+                            <TimePicker x:Name="ScheduleTimeEditor" Header="时间" Time="{x:Bind ViewModel.ScheduleTime, Mode=TwoWay}" ClockIdentifier="24HourClock" IsEnabled="{x:Bind ViewModel.ScheduleEnabled, Mode=OneWay}" HorizontalAlignment="Left"/>
+                            <Expander Header="时区" HorizontalAlignment="Stretch"><StackPanel Spacing="12"><TextBlock Text="{x:Bind ViewModel.ScheduleTimeZone, Mode=OneWay}"/><TextBox Header="时区 ID" Text="{Binding Config.Schedule.TimeZoneId, Mode=TwoWay}"/></StackPanel></Expander>
+                            <TextBlock Text="任务正在运行，或应用未运行时，当天计划将跳过且不补跑。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                         </StackPanel>
 
                         <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.SettingsVisibility, Mode=OneWay}">
                             <TextBlock Text="设置" Style="{ThemeResource TitleTextBlockStyle}"/>
-                            <ComboBox Header="应用主题" ItemsSource="{x:Bind ViewModel.Themes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{Binding Config.Theme, Mode=TwoWay}" Width="300"/>
-                            <ToggleSwitch Header="登录时打开 GameDailyHub" IsOn="{x:Bind ViewModel.StartupEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.StartupAvailable, Mode=OneWay}" Toggled="Startup_Toggled" OnContent="已开启" OffContent="已关闭"/>
+                            <ComboBox Header="外观" ItemsSource="{x:Bind ViewModel.Themes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{Binding Config.Theme, Mode=TwoWay}" SelectionChanged="Theme_Changed" Width="300"/>
+                            <ToggleSwitch Header="登录时启动" IsOn="{x:Bind ViewModel.StartupEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.StartupAvailable, Mode=OneWay}" Toggled="Startup_Toggled" OnContent="开" OffContent="关"/>
                             <TextBlock Text="{x:Bind ViewModel.StartupHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            <Button Content="打开日志文件夹" Click="OpenLogs_Click"/>
-                            <Expander Header="数据与备份" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Expander Header="数据" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="16">
-                                    <TextBox Header="配置及历史目录" Text="{x:Bind ViewModel.DataDirectory}" IsReadOnly="True" Width="620"/>
-                                    <TextBox Header="日志目录（留空使用默认；重启生效）" Text="{Binding Config.LogDirectory, Mode=TwoWay}"/>
+                                    <TextBox Header="数据目录" Text="{x:Bind ViewModel.DataDirectory}" IsReadOnly="True" Width="620"/>
+                                    <TextBox Header="日志目录（留空使用默认，重启后生效）" Text="{Binding Config.LogDirectory, Mode=TwoWay}"/>
                                     <TextBlock Text="{x:Bind ViewModel.ActualLogDirectory, Mode=OneWay}" TextWrapping="Wrap"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入配置" Click="Import_Click"/><Button Content="导出配置" Click="Export_Click"/></StackPanel>
+                                    <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入配置…" Click="Import_Click"/><Button Content="导出配置…" Click="Export_Click"/><Button Content="打开日志文件夹" Click="OpenLogs_Click"/></StackPanel>
                                 </StackPanel>
-                            </Expander>                            <Button Content="保存设置" Command="{x:Bind ViewModel.SaveCommand}" Style="{ThemeResource AccentButtonStyle}"/>
+                            </Expander>
                         </StackPanel>
                     </Grid>
                 </ScrollViewer>

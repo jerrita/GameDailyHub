@@ -31,6 +31,7 @@ public partial class MainViewModel : ObservableObject
     private readonly Dictionary<string, SourceOperation> _sourceOperations = new(StringComparer.OrdinalIgnoreCase);
     private readonly ScheduleEvaluator _schedule = new();
     private readonly List<LogEntry> _logs = [];
+    private readonly SemaphoreSlim _saveLock = new(1, 1);
     private ExecutionJournal _journal = null!;
     private NormalLaunchService _launch = null!;
     private QueueEngine _engine = null!;
@@ -51,7 +52,7 @@ public partial class MainViewModel : ObservableObject
     public IReadOnlyList<AssistantRunMode> AssistantRunModes { get; } = Enum.GetValues<AssistantRunMode>();
     public IReadOnlyList<string> Themes { get; } = ["Default", "Light", "Dark"];
     private string _selectedPage = default!;
-    public string SelectedPage { get => _selectedPage; set { if (SetProperty(ref _selectedPage, value)) OnSelectedPageChanged(value); } }
+    public string SelectedPage { get => _selectedPage; set { var previous = _selectedPage; if (SetProperty(ref _selectedPage, value)) OnSelectedPageChanged(previous); } }
     private GameCardViewModel? _selectedGame = default!;
     public GameCardViewModel? SelectedGame { get => _selectedGame; set { if (SetProperty(ref _selectedGame, value)) OnSelectedGameChanged(value); } }
     private TaskRowViewModel? _selectedTask = default!;
@@ -78,14 +79,12 @@ public partial class MainViewModel : ObservableObject
     public string Elapsed { get => _elapsed; set { SetProperty(ref _elapsed, value); } }
     private string _lastBatchSummary = default!;
     public string LastBatchSummary { get => _lastBatchSummary; set { SetProperty(ref _lastBatchSummary, value); } }
-    private string _batchFilter = default!;
-    public string BatchFilter { get => _batchFilter; set { SetProperty(ref _batchFilter, value); } }
     private bool _filterBySelectedGame = default!;
     public bool FilterBySelectedGame { get => _filterBySelectedGame; set { SetProperty(ref _filterBySelectedGame, value); } }
     private bool _startupEnabled = default!;
     public bool StartupEnabled { get => _startupEnabled; set { SetProperty(ref _startupEnabled, value); } }
     public bool StartupAvailable { get; private set; } = true;
-    public string StartupHint { get; private set; } = "开关即时保存，以当前用户权限打开应用。";
+    public string StartupHint { get; private set; } = "";
     public bool IsIdle => !IsBusy && !SourceBusy;
     public bool SourceBusy => _sourceCancellation is not null;
     public Visibility SourceBusyVisibility => SourceBusy ? Visibility.Visible : Visibility.Collapsed;
@@ -132,8 +131,8 @@ public partial class MainViewModel : ObservableObject
     public Visibility March7thVisibility => SelectedGame?.Config.AdapterId == "march7th" ? Visibility.Visible : Visibility.Collapsed;
     public string ProfileHeader => SelectedGame?.Config.AdapterId == "bettergi" ? "一条龙配置名称" : "工作流名称（可选）";
     public string ProfileHint => SelectedGame?.Config.AdapterId == "bettergi" ? "填写 BetterGI 中已保存的一条龙名称。" : "留空运行助手默认日常。";
-    public string ToolPathHeader => SelectedGame?.Config.AdapterId == "march7th" ? "任务助手 · March7th Assistant.exe" : "任务助手 · " + (SelectedGame?.ToolName ?? "选择 .exe");
-    public string ToolPathPlaceholder => SelectedGame?.Config.AdapterId == "generic" ? "选择助手 .exe" : "留空使用默认安装位置";
+    public string ToolPathHeader => SelectedGame?.Config.AdapterId == "march7th" ? "助手程序 · March7th Assistant.exe" : "助手程序 · " + (SelectedGame?.ToolName ?? "");
+    public string ToolPathPlaceholder => SelectedGame?.Config.AdapterId == "generic" ? "选择助手程序" : "留空自动查找";
     public AssistantRunMode SelectedRunMode
     {
         get => SelectedGame?.Config.ToolRunMode ?? AssistantRunMode.Binary;
@@ -157,7 +156,7 @@ public partial class MainViewModel : ObservableObject
     public Visibility RunModeVisibility => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SourceVisibility => SelectedRunMode == AssistantRunMode.Source ? Visibility.Visible : Visibility.Collapsed;
     public Visibility BinaryVisibility => SelectedRunMode == AssistantRunMode.Binary ? Visibility.Visible : Visibility.Collapsed;
-    public string SourceDirectoryHint => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? "源码目录：" + _sources.DirectoryFor(game.Config) : "";
+    public string SourceDirectoryHint => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? "位置：" + _sources.DirectoryFor(game.Config) : "";
     public string SourceDirectory => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? _sources.DirectoryFor(game.Config) : "";
     public bool CanOpenSourceDirectory => Directory.Exists(SourceDirectory);
     public string SourceOutput => _sourceOperations.TryGetValue(SourceDirectory, out var operation) ? operation.Output : "";
@@ -170,7 +169,7 @@ public partial class MainViewModel : ObservableObject
             var code = File.Exists(_sources.EntryPath(game.Config, false)) ? "源码已就绪" : "源码未就绪";
             var environment = File.Exists(_sources.PythonPath(game.Config)) ? "环境已安装" : "环境未安装";
             var status = _sourceOperations.TryGetValue(SourceDirectory, out var operation) ? operation.Status : "";
-            return $"当前状态：{code} · {environment}" + (status.Length > 0 ? " · " + status : "");
+            return $"{code} · {environment}" + (status.Length > 0 ? " · " + status : "");
         }
     }
     private void RefreshSourceDetails()
@@ -191,13 +190,13 @@ public partial class MainViewModel : ObservableObject
         }
     }
     public string ExecutionSummary => SelectedTrigger == TriggerMode.Manual ? "在助手内开始任务，完成后回到这里确认结果。" : SelectedGame is { } game
-        ? $"每项超时 {game.Config.Daily.TimeoutMinutes:g} 分钟，失败重试 {game.Config.Daily.RetryCount} 次。" + (game.Config.Daily.ContinueOnFailure ? "明确失败后继续下一项。" : "明确失败后停止队列。")
-        : "选择游戏后即可设置。";
+        ? $"每项最长 {game.Config.Daily.TimeoutMinutes:g} 分钟，失败重试 {game.Config.Daily.RetryCount} 次。" + (game.Config.Daily.ContinueOnFailure ? "失败后继续下一项。" : "失败后停止队列。")
+        : "请先选择游戏。";
     public string ScheduleTimeZone => "当前时区：" + _config.Schedule.TimeZoneId;
     public bool ScheduleEnabled
     {
         get => _config.Schedule.Enabled;
-        set { if (_config.Schedule.Enabled == value) return; _config.Schedule.Enabled = value; OnPropertyChanged(); }
+        set { if (_config.Schedule.Enabled == value) return; _config.Schedule.Enabled = value; OnPropertyChanged(); _ = SaveIfChangedAsync(); }
     }
     public TimeSpan ScheduleTime
     {
@@ -209,6 +208,7 @@ public partial class MainViewModel : ObservableObject
             if (_config.Schedule.Time == time) return;
             _config.Schedule.Time = time;
             OnPropertyChanged();
+            _ = SaveIfChangedAsync();
         }
     }
     public void RefreshConfigurationOptions()
@@ -224,7 +224,7 @@ public partial class MainViewModel : ObservableObject
         }
         finally { _refreshingOptions = false; }
     }
-    public string HistoryDetails => SelectedHistory?.Details ?? "选择一条历史记录查看错误与判定证据";
+    public string HistoryDetails => SelectedHistory?.Details ?? "选择一条记录查看详情";
     public IAsyncRelayCommand RunAllCommand { get; }
     public IAsyncRelayCommand SaveCommand { get; }
     public IAsyncRelayCommand RefreshHistoryCommand { get; }
@@ -249,13 +249,12 @@ public partial class MainViewModel : ObservableObject
     {
         _dispatcher = dispatcher;
         SelectedPage = "home";
-        Message = "首次使用：进入游戏设置，选择游戏和助手后保存配置。";
+        Message = "首次使用：在「游戏」中确认游戏与助手，改动会自动保存。";
         HasMessage = true;
         CurrentTask = "准备就绪";
-        ProgressText = "尚未开始批次";
+        ProgressText = "暂无进行中的任务";
         Elapsed = "00:00:00";
-        LastBatchSummary = "尚无批量执行记录";
-        BatchFilter = "";
+        LastBatchSummary = "还没有运行记录";
         _store = new(dataRoot ?? ConfigurationStore.DefaultRoot);
         _sources = new(_processes, _store.Root);
         _adapters = new(_processes, _sources);
@@ -268,8 +267,8 @@ public partial class MainViewModel : ObservableObject
         ApplyStartupCommand = new AsyncRelayCommand(async () =>
         {
             if (!StartupAvailable) { StartupEnabled = _savedStartupEnabled; return; }
-            try { await _startup.SetEnabledAsync(StartupEnabled); _savedStartupEnabled = StartupEnabled; Show(StartupEnabled ? "登录时将自动打开 GameDailyHub" : "已关闭登录时启动"); }
-            catch (Exception e) { StartupEnabled = _savedStartupEnabled; Show("登录启动设置未能保存：" + e.Message); }
+            try { await _startup.SetEnabledAsync(StartupEnabled); _savedStartupEnabled = StartupEnabled; Show(StartupEnabled ? "登录时将自动启动" : "已关闭登录时启动"); }
+            catch (Exception e) { StartupEnabled = _savedStartupEnabled; Show("未能更改登录时启动：" + e.Message); }
         });
         StopCommand = new RelayCommand(() => _engine.Stop());
         SkipCommand = new RelayCommand(() => _engine.SkipCurrent());
@@ -327,24 +326,31 @@ public partial class MainViewModel : ObservableObject
         try { await action(); }
         catch (Exception e) { Show(e.Message); _journal?.Log(new(DateTimeOffset.Now, "错误", e.ToString())); }
     }
+    private bool HasUnsavedChanges => JsonSerializer.Serialize(_config, JsonDefaults.Options) != JsonSerializer.Serialize(_savedConfig, JsonDefaults.Options);
+    public Task SaveIfChangedAsync() => HasUnsavedChanges ? GuardAsync(SaveAsync) : Task.CompletedTask;
+    public void ApplyTheme() { ThemeRequested?.Invoke(_config.Theme); _ = SaveIfChangedAsync(); }
     private async Task SaveAsync()
     {
-        foreach (var game in _config.Games) ConfigurationSuggestions.Apply(game);
-        await _store.SaveAsync(_config);
-        _savedConfig = _config.Clone();
-        foreach (var g in Games) { g.Refresh(); await RefreshCardAsync(g); }
-        ReloadTasks();
-        RefreshConfigurationOptions();
-        OnPropertyChanged(nameof(ScheduleTimeZone));
-        ThemeRequested?.Invoke(_config.Theme);
-        Show("已保存");
+        await _saveLock.WaitAsync();
+        try
+        {
+            foreach (var game in _config.Games) ConfigurationSuggestions.Apply(game);
+            await _store.SaveAsync(_config);
+            _savedConfig = _config.Clone();
+            foreach (var g in Games) { g.Refresh(); await RefreshCardAsync(g); }
+            ReloadTasks();
+            RefreshConfigurationOptions();
+            OnPropertyChanged(nameof(ScheduleTimeZone));
+            ThemeRequested?.Invoke(_config.Theme);
+        }
+        finally { _saveLock.Release(); }
     }
     private async Task PrepareSourceAsync(bool updateCode, bool installEnvironment)
     {
         if (!IsIdle || SelectedGame is null || SelectedRunMode != AssistantRunMode.Source) return;
         var game = JsonSerializer.Deserialize<GameConfig>(JsonSerializer.Serialize(SelectedGame.Config, JsonDefaults.Options), JsonDefaults.Options)!;
         var directory = _sources.DirectoryFor(game);
-        var operation = new SourceOperation { Status = installEnvironment ? "正在安装环境" : "正在克隆 / 更新代码" };
+        var operation = new SourceOperation { Status = installEnvironment ? "正在安装环境" : "正在获取代码" };
         _sourceOperations[directory] = operation;
         RefreshSourceDetails();
         using var cancellation = new CancellationTokenSource();
@@ -353,7 +359,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             await SaveAsync();
-            Show("正在处理源码助手，进度显示在下方命令输出中。");
+            Show("正在处理，进度见下方输出。");
             await Task.Run(() => _sources.PrepareAsync(game, updateCode, installEnvironment,
                 line =>
                 {
@@ -369,13 +375,13 @@ public partial class MainViewModel : ObservableObject
                         RefreshSourceDetails();
                     });
                 }, cancellation.Token));
-            operation.Status = installEnvironment ? "环境安装完成" : "代码更新完成";
-            Show(installEnvironment ? "源码环境已安装" : "源码已更新，请安装环境后启动");
+            operation.Status = installEnvironment ? "环境已安装" : "代码已更新";
+            Show(installEnvironment ? "源码环境已安装" : "代码已更新，接下来请安装环境");
         }
-        catch (OperationCanceledException) { operation.Status = "操作已取消"; Show("源码操作已取消"); }
+        catch (OperationCanceledException) { operation.Status = "已取消"; Show("已取消"); }
         catch (Exception e)
         {
-            operation.Status = "操作失败";
+            operation.Status = "未成功";
             operation.Output += e.Message + Environment.NewLine;
             Show(e.Message); _journal.Log(new(DateTimeOffset.Now, "错误", e.Message, GameId: game.Id));
         }
@@ -393,20 +399,20 @@ public partial class MainViewModel : ObservableObject
         foreach (var card in Games)
         {
             card.CanLaunch = IsIdle;
-            card.CanRun = IsIdle && card.ConfigurationStatus == "日常配置就绪";
+            card.CanRun = IsIdle && card.ConfigurationStatus == GameCardViewModel.ReadyStatus;
         }
     }
     private GameCardViewModel CreateCard(GameConfig game) => new(game,
         (card, target) => GuardAsync(async () =>
         {
-            if (SourceBusy) throw new InvalidOperationException("请等待源码操作结束");
-            if (IsBusy && _engine.Snapshot.GameId == card.Config.Id) throw new InvalidOperationException("该游戏正在执行日常");
+            if (SourceBusy) throw new InvalidOperationException("请等待源码操作完成");
+            if (IsBusy && _engine.Snapshot.GameId == card.Config.Id) throw new InvalidOperationException("该游戏正在运行日常");
             var config = JsonSerializer.Deserialize<GameConfig>(JsonSerializer.Serialize(card.Config, JsonDefaults.Options), JsonDefaults.Options)!;
             var result = await Task.Run(() => _launch.LaunchAsync(config, target));
             Show(result.Message);
             await RefreshCardAsync(card);
         }),
-        card => RunTasksAsync([new QueueTaskConfig { GameId = card.Config.Id, Name = card.Name + " · 单独日常" }]),
+        card => RunTasksAsync([new QueueTaskConfig { GameId = card.Config.Id, Name = card.Name + " · 日常" }]),
         card => { SelectedGame = card; SelectedPage = "config"; });
     private void ReloadGames()
     {
@@ -429,7 +435,7 @@ public partial class MainViewModel : ObservableObject
         if (SelectedGame is null || IsBusy) return;
         var game = SelectedGame.Config;
         _config.Tasks.RemoveAll(t => t.GameId == game.Id); _config.Games.Remove(game); ReloadGames();
-        Show("游戏及其队列任务已移除，点击保存配置以持久化。");
+        Show("已移除游戏及其队列任务");
     }
     private void AddTask()
     {
@@ -446,10 +452,10 @@ public partial class MainViewModel : ObservableObject
     }
     private async Task RunTasksAsync(IEnumerable<QueueTaskConfig> tasks) => await GuardAsync(async () =>
     {
-        if (SourceBusy) throw new InvalidOperationException("请等待源码操作结束");
+        if (SourceBusy) throw new InvalidOperationException("请等待源码操作完成");
         var frozen = _config.Clone();
         var requests = tasks.Select(t => new TaskRequest(new() { Id = t.Id, GameId = t.GameId, Name = t.Name, Enabled = t.Enabled }, frozen.Games.First(g => g.Id == t.GameId))).ToArray();
-        if (requests.Length == 0) throw new InvalidOperationException("请先启用至少一个队列任务");
+        if (requests.Length == 0) throw new InvalidOperationException("任务队列中没有已启用的任务");
         await Task.Run(() => _engine.RunAsync(requests));
         await RefreshHistoryAsync();
     });
@@ -458,19 +464,19 @@ public partial class MainViewModel : ObservableObject
         IsBusy = s.IsBusy; AwaitingConfirmation = s.IsBusy && s.State == RunState.AwaitingConfirmation;
         if (!AwaitingConfirmation) ConfirmedStopped = false;
         CurrentTask = string.IsNullOrEmpty(s.GameName) ? s.Message : $"{s.GameName} · {s.TaskName} · {s.State.Chinese()}";
-        ProgressText = $"完成 {s.Completed} / 失败 {s.Failed} / 跳过 {s.Skipped} / 剩余 {s.Remaining} / 总计 {s.Total}";
+        ProgressText = $"已完成 {s.Total - s.Remaining} / {s.Total}" + (s.Failed > 0 ? $"，失败 {s.Failed}" : "") + (s.Skipped > 0 ? $"，跳过 {s.Skipped}" : "");
         Progress = s.Total == 0 ? 0 : 100d * (s.Total - s.Remaining) / s.Total;
         foreach (var g in Games)
         {
             g.CanLaunch = !(s.IsBusy && s.GameId == g.Config.Id);
-            g.CanRun = !s.IsBusy && g.ConfigurationStatus == "日常配置就绪";
+            g.CanRun = !s.IsBusy && g.ConfigurationStatus == GameCardViewModel.ReadyStatus;
             if (s.GameId == g.Config.Id) g.DailyStatus = s.State.Chinese();
         }
         if (AwaitingConfirmation) Show(s.Message);
     }
     private void SetBatchSummary(BatchResult result)
     {
-        LastBatchSummary = $"{result.FinishedAt:MM-dd HH:mm} · 成功 {result.SuccessCount} / 失败或未知 {result.FailedCount} / 跳过 {result.SkippedCount} / 取消 {result.CancelledCount}";
+        LastBatchSummary = $"上次运行 {result.FinishedAt:MM-dd HH:mm}：成功 {result.SuccessCount}，失败 {result.FailedCount}，跳过 {result.SkippedCount}" + (result.CancelledCount > 0 ? $"，取消 {result.CancelledCount}" : "");
         foreach (var g in Games)
         {
             var last = result.Attempts.LastOrDefault(r => r.GameId == g.Config.Id);
@@ -479,13 +485,13 @@ public partial class MainViewModel : ObservableObject
     }
     private void Confirm(RunState state)
     {
-        if (!ConfirmedStopped) { Show("请先确认当前自动化已停止"); return; }
+        if (!ConfirmedStopped) { Show("请先勾选「助手已停止运行」"); return; }
         if (_engine.Confirm(new(state, true))) ConfirmedStopped = false;
     }
     private async Task RefreshCardAsync(GameCardViewModel card)
     {
         var validation = await _adapters.Get(card.Config.AdapterId).ValidateAsync(card.Config, true, CancellationToken.None);
-        card.ConfigurationStatus = validation.IsValid ? "日常配置就绪" : string.Join("；", validation.Errors);
+        card.ConfigurationStatus = validation.IsValid ? GameCardViewModel.ReadyStatus : string.Join("；", validation.Errors);
         card.CanRun = validation.IsValid && IsIdle;
         var running = ProcessPaths(card.Config)
             .Where(p => !string.IsNullOrWhiteSpace(p)).Any(p => _processes.FindRunning(p).Count > 0);
@@ -511,27 +517,26 @@ public partial class MainViewModel : ObservableObject
         }
         if (_journal.LastStorageError is { } storageError && storageError != _lastStorageError)
         {
-            _lastStorageError = storageError; Show("日志写入失败，请检查日志目录：" + storageError);
+            _lastStorageError = storageError; Show("日志无法写入，请检查日志目录：" + storageError);
         }
         if (_schedule.ShouldRun(_savedConfig.Schedule, DateTimeOffset.UtcNow))
         {
             await _store.SaveAsync(_savedConfig);
             _config.Schedule.LastTriggeredDate = _savedConfig.Schedule.LastTriggeredDate;
-            if (!IsIdle) _journal.Log(new(DateTimeOffset.Now, "警告", "每日计划与当前操作冲突，本日计划已跳过"));
+            if (!IsIdle) _journal.Log(new(DateTimeOffset.Now, "警告", "当前有任务在运行，今日定时运行已跳过"));
             else
             {
                 var saved = _savedConfig.Clone();
                 var requests = saved.Tasks.Where(t => t.Enabled).Select(t => new TaskRequest(t, saved.Games.First(g => g.Id == t.GameId))).ToArray();
-                _ = GuardAsync(async () => { if (requests.Length == 0) throw new InvalidOperationException("每日计划没有启用的任务"); await Task.Run(() => _engine.RunAsync(requests)); await RefreshHistoryAsync(); });
+                _ = GuardAsync(async () => { if (requests.Length == 0) throw new InvalidOperationException("任务队列中没有已启用的任务"); await Task.Run(() => _engine.RunAsync(requests)); await RefreshHistoryAsync(); });
             }
         }
     }
-    private bool MatchesFilter(LogEntry e) => (!FilterBySelectedGame || SelectedGame?.Config.Id == e.GameId) && (string.IsNullOrWhiteSpace(BatchFilter) || e.BatchId?.ToString().Contains(BatchFilter.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+    private bool MatchesFilter(LogEntry e) => (!FilterBySelectedGame || SelectedGame?.Config.Id == e.GameId);
     private string FormatLog(LogEntry e) => $"{e.Timestamp:HH:mm:ss} [{e.Level}] {_config.Games.FirstOrDefault(g => g.Id == e.GameId)?.Name} {e.Message}";
     private async Task RefreshHistoryAsync()
     {
-        Guid? batch = string.IsNullOrWhiteSpace(BatchFilter) ? null : Guid.TryParse(BatchFilter, out var id) ? id : throw new InvalidOperationException("历史批次筛选请输入完整 GUID");
-        var records = await _journal.ReadRunsAsync(FilterBySelectedGame ? SelectedGame?.Config.Id : null, batch);
+        var records = await _journal.ReadRunsAsync(FilterBySelectedGame ? SelectedGame?.Config.Id : null, null);
         History.Clear(); foreach (var r in records) History.Add(new(r));
         foreach (var g in Games)
         {
@@ -552,10 +557,10 @@ public partial class MainViewModel : ObservableObject
     });
     public async Task ImportAsync(string path) => await GuardAsync(async () =>
     {
-        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后导入配置");
+        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后再导入配置");
         _config = await _store.ImportAsync(path); _savedConfig = _config.Clone(); SetServices(); ReloadGames(); OnPropertyChanged(nameof(Config));
         OnPropertyChanged(nameof(ScheduleTime)); OnPropertyChanged(nameof(ScheduleTimeZone)); OnPropertyChanged(nameof(ScheduleEnabled));
-        await RefreshHistoryAsync(); ThemeRequested?.Invoke(_config.Theme); Show("配置已导入；每日计划保持关闭，请核对后启用。");
+        await RefreshHistoryAsync(); ThemeRequested?.Invoke(_config.Theme); Show("配置已导入。定时运行保持关闭，请核对后再开启。");
     });
     public async Task ExportAssistantAsync(string path) => await GuardAsync(async () =>
     {
@@ -563,11 +568,11 @@ public partial class MainViewModel : ObservableObject
         ConfigurationSuggestions.Apply(game);
         var json = await Task.Run(() => AssistantProfileService.Export(game, AssistantProfileService.RootFor(game, _sources)));
         await File.WriteAllTextAsync(path, json);
-        Show(game.Name + "：助手配置已导出。文件含助手自身的配置，可能包含通知密钥等敏感内容，请妥善保管；其中的本机路径不会被导入。");
+        Show(game.Name + "：助手配置已导出。文件可能含通知密钥，请妥善保管。");
     });
     public async Task ImportAssistantAsync(string path) => await GuardAsync(async () =>
     {
-        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后导入助手配置");
+        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后再导入助手配置");
         var card = SelectedGame ?? throw new InvalidOperationException("请先选择游戏");
         var game = card.Config;
         ConfigurationSuggestions.Apply(game);
@@ -575,18 +580,19 @@ public partial class MainViewModel : ObservableObject
         var json = await File.ReadAllTextAsync(path);
         var result = await Task.Run(() =>
         {
-            if (assistantPaths.Any(p => _processes.FindRunning(p).Count > 0)) throw new InvalidOperationException("助手正在运行，请先关闭后再导入，否则它退出时会覆盖导入的配置");
+            if (assistantPaths.Any(p => _processes.FindRunning(p).Count > 0)) throw new InvalidOperationException("请先关闭助手再导入，否则助手退出时会覆盖导入的配置");
             return AssistantProfileService.Import(json, game, AssistantProfileService.RootFor(game, _sources));
         });
         ConfigurationSuggestions.Apply(game);
         // Replace the selection notification so classic bindings re-read the imported values.
         SelectedGame = null; SelectedGame = card; card.Refresh(); RefreshConfigurationOptions();
-        Show(card.Name + $"：已导入 {result.FilesWritten} 个助手配置文件（覆盖前备份 {result.BackupsMade} 个，后缀 .gdh-*.bak）；日常执行方式请核对后点击保存。");
+        Show(card.Name + $"：已导入 {result.FilesWritten} 个助手配置文件，原文件已备份（.gdh-*.bak）。请核对日常运行设置。");
     });
     public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
     private Visibility VisibilityFor(string page) => SelectedPage == page ? Visibility.Visible : Visibility.Collapsed;
-    private void OnSelectedPageChanged(string value)
+    private void OnSelectedPageChanged(string? previous)
     {
+        if (previous is not null) _ = SaveIfChangedAsync();
         foreach (var name in new[] { nameof(HomeVisibility), nameof(TasksVisibility), nameof(ConfigVisibility), nameof(LogsVisibility), nameof(ScheduleVisibility), nameof(SettingsVisibility) }) OnPropertyChanged(name);
     }
     private void OnSelectedGameChanged(GameCardViewModel? value) => RefreshConfigurationOptions();

@@ -11,8 +11,7 @@ public partial class GameCardViewModel : ObservableObject
     public string Name => Config.Name;
     public string ToolName => Config.ToolName;
     public string Glyph => Config.AdapterId switch { "bettergi" => "✦", "march7th" => "✧", "okww" => "◈", _ => "◇" };
-    public string GamePathStatus => "游戏：" + (File.Exists(Config.GamePath) ? "已配置" : "未配置");
-    public string ToolPathStatus => Config.ToolRunMode == AssistantRunMode.Source ? "助手：源码模式" : "助手：" + (File.Exists(Config.ToolPath) ? "已配置" : "未配置");
+    public const string ReadyStatus = "已就绪";
     private string _processStatus = default!;
     public string ProcessStatus { get => _processStatus; set { SetProperty(ref _processStatus, value); } }
     private string _dailyStatus = default!;
@@ -20,7 +19,9 @@ public partial class GameCardViewModel : ObservableObject
     private string _lastRun = default!;
     public string LastRun { get => _lastRun; set { SetProperty(ref _lastRun, value); } }
     private string _configurationStatus = default!;
-    public string ConfigurationStatus { get => _configurationStatus; set { SetProperty(ref _configurationStatus, value); } }
+    public string ConfigurationStatus { get => _configurationStatus; set { if (SetProperty(ref _configurationStatus, value)) { OnPropertyChanged(nameof(SetupHint)); OnPropertyChanged(nameof(SetupHintVisibility)); } } }
+    public string SetupHint => ConfigurationStatus == ReadyStatus ? "" : ConfigurationStatus;
+    public Visibility SetupHintVisibility => ConfigurationStatus == ReadyStatus ? Visibility.Collapsed : Visibility.Visible;
     private bool _canRun = default!;
     public bool CanRun { get => _canRun; set { SetProperty(ref _canRun, value); } }
     private bool _canLaunch = default!;
@@ -33,9 +34,9 @@ public partial class GameCardViewModel : ObservableObject
     {
         Config = config;
         ProcessStatus = "未启动";
-        DailyStatus = "未执行日常";
-        LastRun = "尚无执行记录";
-        ConfigurationStatus = "请配置路径和执行方式";
+        DailyStatus = "今日未运行";
+        LastRun = "暂无运行记录";
+        ConfigurationStatus = "请先完成设置";
         CanLaunch = true;
         LaunchAssistantCommand = new AsyncRelayCommand(() => launch(this, LaunchTarget.Assistant));
         LaunchGameCommand = new AsyncRelayCommand(() => launch(this, LaunchTarget.Game));
@@ -54,6 +55,6 @@ public sealed class TaskRowViewModel(QueueTaskConfig config, string gameName)
 public sealed record HistoryRowViewModel(RunRecord Record)
 {
     public string Title => $"{Record.StartedAt:MM-dd HH:mm} · {Record.GameName} · {Record.State.Chinese()}";
-    public string Subtitle => $"{Record.TaskName} / 第 {Record.Attempt} 次 / {Record.Duration.TotalSeconds:F1} 秒 / 批次 {Record.BatchId.ToString()[..8]}";
+    public string Subtitle => $"{Record.TaskName} · 第 {Record.Attempt} 次 · {Record.Duration.TotalSeconds:F1} 秒";
     public string Details => $"批次：{Record.BatchId}\n执行：{Record.RunId}\n退出码：{Record.ExitCode?.ToString() ?? "无"}\n结果：{Record.Message}\n\n{Record.Evidence}";
 }

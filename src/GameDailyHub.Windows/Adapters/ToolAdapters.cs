@@ -65,14 +65,14 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
         var source = game.ToolRunMode == AssistantRunMode.Source && (daily || game.Normal.Target == LaunchTarget.Assistant);
         void CheckFile(string path, string name)
         {
-            if (string.IsNullOrWhiteSpace(path) && name == "任务助手路径" && Capabilities.Id != "generic") errors.Add("默认安装位置未找到任务助手，请选择已安装的助手 .exe");
-            else if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) errors.Add(name + "未配置或文件不存在");
-            else if (!Path.GetExtension(path).Equals(".exe", StringComparison.OrdinalIgnoreCase)) errors.Add(name + "必须为可执行文件 .exe");
+            if (string.IsNullOrWhiteSpace(path) && name == "助手程序" && Capabilities.Id != "generic") errors.Add("未找到助手，请在「游戏」中选择助手程序");
+            else if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) errors.Add(name + "不存在，请重新选择");
+            else if (!Path.GetExtension(path).Equals(".exe", StringComparison.OrdinalIgnoreCase)) errors.Add(name + "需为 .exe 文件");
         }
         if (!daily)
         {
             if (game.Normal.Target == LaunchTarget.Game && string.IsNullOrWhiteSpace(game.GamePath) && Capabilities.Id != "generic")
-                errors.Add("默认安装位置未找到游戏客户端，请选择已安装的游戏 .exe");
+                errors.Add("未找到游戏，请在「游戏」中选择游戏程序");
             else if (source) errors.AddRange(Sources.Validate(game, true));
             else CheckFile(game.NormalPath, "普通启动目标");
             var name = Path.GetFileName(game.NormalPath);
@@ -88,7 +88,7 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
         else
         {
             if (source) errors.AddRange(Sources.Validate(game, game.Daily.Trigger == TriggerMode.Manual));
-            else CheckFile(game.Daily.Trigger == TriggerMode.Manual && !string.IsNullOrWhiteSpace(game.ToolGuiPath) ? game.ToolGuiPath : game.ToolPath, "任务助手路径");
+            else CheckFile(game.Daily.Trigger == TriggerMode.Manual && !string.IsNullOrWhiteSpace(game.ToolGuiPath) ? game.ToolGuiPath : game.ToolPath, "助手程序");
             if (!double.IsFinite(game.Daily.TimeoutMinutes) || game.Daily.TimeoutMinutes <= 0 || game.Daily.TimeoutMinutes > 1440 || game.Daily.RetryCount is < 0 or > 10) errors.Add("超时或重试配置无效");
             if (game.Daily.Trigger != TriggerMode.Manual && game.Daily.Completion == CompletionMode.LogRules)
             {
