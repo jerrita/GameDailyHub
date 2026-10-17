@@ -9,9 +9,9 @@ namespace GameDailyHub.Windows.Adapters;
 public sealed class AdapterRegistry : IAdapterRegistry
 {
     private readonly Dictionary<string, IToolAdapter> _adapters;
-    public AdapterRegistry(ProcessService processes)
+    public AdapterRegistry(ProcessService processes, SourceAssistantService? sources = null)
     {
-        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes), new OkWwAdapter(processes), new GenericAdapter(processes)];
+        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new GenericAdapter(processes)];
         _adapters = adapters.ToDictionary(a => a.Capabilities.Id);
     }
     public IToolAdapter Get(string id) => _adapters.TryGetValue(id, out var adapter) ? adapter : throw new InvalidOperationException("未知适配器：" + id);
@@ -50,9 +50,10 @@ public sealed class ProcessAdapterRun(Guid id, GameConfig game, OwnedProcessSess
     }
 }
 
-public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapter
+public abstract class ProcessToolAdapter(ProcessService processes, SourceAssistantService? sources = null) : IToolAdapter
 {
     protected ProcessService Processes { get; } = processes;
+    protected SourceAssistantService Sources { get; } = sources ?? new(processes, ConfigurationStore.DefaultRoot);
     public abstract AdapterCapabilities Capabilities { get; }
     protected abstract string VerifiedArguments(GameConfig game);
     protected virtual void ValidateTool(GameConfig game, bool daily, List<string> errors) { }
@@ -61,6 +62,7 @@ public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapte
         cancellationToken.ThrowIfCancellationRequested();
         ConfigurationSuggestions.Apply(game);
         var errors = new List<string>();
+        var source = game.ToolRunMode == AssistantRunMode.Source && (daily || game.Normal.Target == LaunchTarget.Assistant);
         void CheckFile(string path, string name)
         {
             if (string.IsNullOrWhiteSpace(path) && name == "任务助手路径" && Capabilities.Id != "generic") errors.Add("默认安装位置未找到任务助手，请选择已安装的助手 .exe");
@@ -71,12 +73,13 @@ public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapte
         {
             if (game.Normal.Target == LaunchTarget.Game && string.IsNullOrWhiteSpace(game.GamePath) && Capabilities.Id != "generic")
                 errors.Add("默认安装位置未找到游戏客户端，请选择已安装的游戏 .exe");
+            else if (source) errors.AddRange(Sources.Validate(game, true));
             else CheckFile(game.NormalPath, "普通启动目标");
             var name = Path.GetFileName(game.NormalPath);
             var isAssistant = game.Normal.Target == LaunchTarget.Assistant
                 || new[] { game.ToolPath, game.ToolGuiPath }.Any(p => !string.IsNullOrWhiteSpace(p) && string.Equals(ProcessService.Normalize(p), ProcessService.Normalize(game.NormalPath), StringComparison.OrdinalIgnoreCase))
                 || new[] { "BetterGI.exe", "March7th Assistant.exe", "March7th Launcher.exe", "ok-ww.exe" }.Contains(name, StringComparer.OrdinalIgnoreCase);
-            if (name.Equals("March7th Assistant.exe", StringComparison.OrdinalIgnoreCase)) errors.Add("March7th Assistant.exe 默认执行任务，普通启动必须选择 March7th Launcher.exe");
+            if (!source && name.Equals("March7th Assistant.exe", StringComparison.OrdinalIgnoreCase)) errors.Add("March7th Assistant.exe 默认执行任务，普通启动必须选择 March7th Launcher.exe");
             if (isAssistant)
             {
                 if (!string.IsNullOrWhiteSpace(game.Normal.Arguments)) errors.Add("助手普通启动仅允许空参数，以确保不触发任务");
@@ -84,7 +87,8 @@ public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapte
         }
         else
         {
-            CheckFile(game.Daily.Trigger == TriggerMode.Manual && !string.IsNullOrWhiteSpace(game.ToolGuiPath) ? game.ToolGuiPath : game.ToolPath, "任务助手路径");
+            if (source) errors.AddRange(Sources.Validate(game, game.Daily.Trigger == TriggerMode.Manual));
+            else CheckFile(game.Daily.Trigger == TriggerMode.Manual && !string.IsNullOrWhiteSpace(game.ToolGuiPath) ? game.ToolGuiPath : game.ToolPath, "任务助手路径");
             if (!double.IsFinite(game.Daily.TimeoutMinutes) || game.Daily.TimeoutMinutes <= 0 || game.Daily.TimeoutMinutes > 1440 || game.Daily.RetryCount is < 0 or > 10) errors.Add("超时或重试配置无效");
             if (game.Daily.Trigger != TriggerMode.Manual && game.Daily.Completion == CompletionMode.LogRules)
             {
@@ -96,19 +100,22 @@ public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapte
             if (Capabilities.Id == "generic" && game.Daily.Trigger == TriggerMode.VerifiedCommand) errors.Add("通用适配器请选择自定义命令或半自动方式");
         }
         var working = daily ? game.Daily.WorkingDirectory : game.Normal.WorkingDirectory;
-        if (!string.IsNullOrWhiteSpace(working) && !Directory.Exists(working)) errors.Add("工作目录不存在");
+        if (!source && !string.IsNullOrWhiteSpace(working) && !Directory.Exists(working)) errors.Add("工作目录不存在");
         try { ValidateTool(game, daily, errors); }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException or System.Text.Json.JsonException) { errors.Add("读取助手配置失败：" + e.Message); }
         return Task.FromResult(new ValidationResult(errors));
     }
     public Task<LaunchResult> LaunchNormalAsync(GameConfig game, CancellationToken cancellationToken)
-        => Processes.LaunchNormalAsync(game.NormalPath, game.Normal.Arguments, game.Normal.WorkingDirectory, cancellationToken);
+        => game.ToolRunMode == AssistantRunMode.Source && game.Normal.Target == LaunchTarget.Assistant
+            ? Sources.LaunchGuiAsync(game, cancellationToken)
+            : Processes.LaunchNormalAsync(game.NormalPath, game.Normal.Arguments, game.Normal.WorkingDirectory, cancellationToken);
 
     public async Task<AdapterRun> TriggerDailyAsync(GameConfig game, Guid runId, Action<string> log, CancellationToken token)
     {
         var validation = await ValidateAsync(game, true, token);
         if (!validation.IsValid) throw new InvalidOperationException(string.Join("；", validation.Errors));
-        foreach (var path in new[] { game.ToolPath, game.ToolGuiPath }.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
+        var source = game.ToolRunMode == AssistantRunMode.Source;
+        foreach (var path in new[] { game.ToolPath, game.ToolGuiPath, source ? Sources.PythonPath(game) : "" }.Where(p => !string.IsNullOrWhiteSpace(p)).Distinct(StringComparer.OrdinalIgnoreCase))
             if (Processes.FindRunning(path).Count != 0) throw new InvalidOperationException("助手已有实例，无法可靠确认其空闲与关联结果。请关闭现有助手后重试");
         token.ThrowIfCancellationRequested();
         var manual = game.Daily.Trigger == TriggerMode.Manual;
@@ -119,14 +126,15 @@ public abstract class ProcessToolAdapter(ProcessService processes) : IToolAdapte
             logPath = Capabilities.Id switch
             {
                 "bettergi" => Path.Combine(Path.GetDirectoryName(game.ToolPath)!, "log", "better-genshin-impact*.log"),
-                "okww" => Path.Combine(Path.GetDirectoryName(game.ToolPath)!, "logs", "ok-ww.log"),
+                "okww" => Path.Combine(source ? Sources.DirectoryFor(game) : Path.GetDirectoryName(game.ToolPath)!, "logs", "ok-ww.log"),
                 _ => null
             };
         var tail = string.IsNullOrWhiteSpace(logPath) ? null : new LogTail(logPath);
         OwnedProcessSession? session = null;
         try
         {
-            session = Processes.StartOwned(pathToStart, arguments, game.Daily.WorkingDirectory);
+            session = source ? await Sources.StartDailyAsync(game, manual, arguments, token)
+                : Processes.StartOwned(pathToStart, arguments, game.Daily.WorkingDirectory);
             token.ThrowIfCancellationRequested();
             log($"已创建任务进程 PID={session.Identity.Pid}，任务参数={arguments}");
             return new ProcessAdapterRun(runId, game, session, tail, log);
@@ -199,17 +207,18 @@ public sealed class BetterGiAdapter(ProcessService processes) : ProcessToolAdapt
     }
 }
 
-public sealed class March7thAdapter(ProcessService processes) : ProcessToolAdapter(processes)
+public sealed class March7thAdapter(ProcessService processes, SourceAssistantService? sources = null) : ProcessToolAdapter(processes, sources)
 {
     public override AdapterCapabilities Capabilities { get; } = new("march7th", "v2026.10.16", "https://github.com/moesnow/March7thAssistant/blob/v2026.10.16/main.py", true);
     protected override string VerifiedArguments(GameConfig game) => string.IsNullOrWhiteSpace(game.Daily.ProfileName) ? "main" : "--workflow-name " + CommandArguments.Quote(game.Daily.ProfileName);
     protected override void ValidateTool(GameConfig game, bool daily, List<string> errors)
     {
-        if (!daily && game.Normal.Target == LaunchTarget.Assistant && !Path.GetFileName(game.NormalPath).Equals("March7th Launcher.exe", StringComparison.OrdinalIgnoreCase))
+        var source = game.ToolRunMode == AssistantRunMode.Source;
+        if (!source && !daily && game.Normal.Target == LaunchTarget.Assistant && !Path.GetFileName(game.NormalPath).Equals("March7th Launcher.exe", StringComparison.OrdinalIgnoreCase))
             errors.Add("普通启动请选择 March7th Launcher.exe；Assistant 程序默认会执行任务");
         if (!daily || game.Daily.Trigger == TriggerMode.Manual) return;
-        if (!Path.GetFileName(game.ToolPath).Equals("March7th Assistant.exe", StringComparison.OrdinalIgnoreCase)) errors.Add("日常任务请选择 March7th Assistant.exe");
-        var actualConfigPath = Path.Combine(Path.GetDirectoryName(game.ToolPath) ?? Path.GetDirectoryName(game.ToolGuiPath) ?? "", "config.yaml");
+        if (!source && !Path.GetFileName(game.ToolPath).Equals("March7th Assistant.exe", StringComparison.OrdinalIgnoreCase)) errors.Add("日常任务请选择 March7th Assistant.exe");
+        var actualConfigPath = Path.Combine(source ? Sources.DirectoryFor(game) : Path.GetDirectoryName(game.ToolPath) ?? Path.GetDirectoryName(game.ToolGuiPath) ?? "", "config.yaml");
         var configPath = string.IsNullOrWhiteSpace(game.ToolConfigPath) ? actualConfigPath : game.ToolConfigPath;
         if (!string.Equals(ProcessService.Normalize(configPath), ProcessService.Normalize(actualConfigPath), StringComparison.OrdinalIgnoreCase))
             errors.Add("该 March7th 版本固定读取助手目录的 config.yaml，请选择实际配置文件");
@@ -229,7 +238,7 @@ public sealed class March7thAdapter(ProcessService processes) : ProcessToolAdapt
     }
 }
 
-public sealed class OkWwAdapter(ProcessService processes) : ProcessToolAdapter(processes)
+public sealed class OkWwAdapter(ProcessService processes, SourceAssistantService? sources = null) : ProcessToolAdapter(processes, sources)
 {
     public override AdapterCapabilities Capabilities { get; } = new("okww", "v3.7.4", "https://github.com/ok-oldking/ok-wuthering-waves/blob/v3.7.4/README.md", true);
     protected override string VerifiedArguments(GameConfig game) => "-t 1";

@@ -69,7 +69,7 @@ public sealed class ProcessService
         }
         catch (Exception e) when (e is ArgumentException or InvalidOperationException or Win32Exception) { return false; }
     }
-    public async Task<LaunchResult> LaunchNormalAsync(string path, string arguments, string directory, CancellationToken token)
+    public async Task<LaunchResult> LaunchNormalAsync(string path, string arguments, string directory, CancellationToken token, bool createNoWindow = false)
     {
         token.ThrowIfCancellationRequested();
         var target = Normalize(path);
@@ -92,7 +92,7 @@ public sealed class ProcessService
         try
         {
             // CreateProcess keeps the current token and never requests shell elevation.
-            started = Process.Start(new ProcessStartInfo(target, arguments) { UseShellExecute = false, WorkingDirectory = ResolveDirectory(directory, target) })
+            started = Process.Start(new ProcessStartInfo(target, arguments) { UseShellExecute = false, WorkingDirectory = ResolveDirectory(directory, target), CreateNoWindow = createNoWindow })
                 ?? throw new InvalidOperationException("系统未返回启动进程");
         }
         catch (Win32Exception e) when (e.NativeErrorCode == 740)

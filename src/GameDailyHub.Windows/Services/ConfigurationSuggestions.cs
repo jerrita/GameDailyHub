@@ -13,6 +13,7 @@ public static class ConfigurationSuggestions
             var path = DefaultGamePaths(game.AdapterId, installationRoots).FirstOrDefault(File.Exists);
             if (path is not null) game.GamePath = path;
         }
+        if (game.ToolRunMode == AssistantRunMode.Source) return;
         if (string.IsNullOrWhiteSpace(game.ToolPath))
         {
             var path = DefaultToolPaths(game.AdapterId, installationRoots).FirstOrDefault(File.Exists);

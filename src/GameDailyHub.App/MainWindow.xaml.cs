@@ -67,13 +67,13 @@ public sealed partial class MainWindow : Window
     }
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
-        if (!ViewModel.IsBusy) return;
+        if (ViewModel.IsIdle) return;
         args.Cancel = true;
         if (_closingPrompt) return;
         _closingPrompt = true;
         try
         {
-            var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "任务正在运行", Content = "停止当前批次并等待安全清理后，再关闭应用。", PrimaryButtonText = "停止任务", CloseButtonText = "继续运行", DefaultButton = ContentDialogButton.Close };
+            var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "操作正在运行", Content = "停止当前操作并等待清理后，再关闭应用。", PrimaryButtonText = "停止操作", CloseButtonText = "继续运行", DefaultButton = ContentDialogButton.Close };
             if (await dialog.ShowAsync() == ContentDialogResult.Primary)
             {
                 ViewModel.RequestStop(); ViewModel.SelectedPage = "home";
@@ -164,9 +164,21 @@ public sealed partial class MainWindow : Window
         if (persisted.Schedule.Time != "09:35" || persisted.Schedule.Enabled) throw new InvalidOperationException("时间选择器绑定或默认关闭状态错误");
         AdvancedOptions.IsExpanded = false;
         ViewModel.HasMessage = false;
-        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings" })
+        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source" })
         {
-            ViewModel.SelectedPage = page;
+            ViewModel.SelectedPage = page == "source" ? "config" : page;
+            if (page == "source")
+            {
+                ViewModel.SelectedGame = ViewModel.Games[1];
+                SourceModeEditor.SelectedItem = Core.Models.AssistantRunMode.Source;
+                SourceDirectoryEditor.Text = Path.Combine(outputRoot, "source checkout");
+                await ViewModel.SaveCommand.ExecuteAsync(null);
+                persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
+                if (persisted.Games[1].ToolRunMode != Core.Models.AssistantRunMode.Source || persisted.Games[1].ToolSourceDirectory != SourceDirectoryEditor.Text
+                    || ViewModel.SourceVisibility != Visibility.Visible || ViewModel.BinaryVisibility != Visibility.Collapsed)
+                    throw new InvalidOperationException("源码模式与路径绑定或持久化失败");
+                ViewModel.HasMessage = false;
+            }
             Mark("Render " + page);
             RootGrid.UpdateLayout();
             await Task.Delay(150);
@@ -180,6 +192,6 @@ public sealed partial class MainWindow : Window
             using var file = File.Create(Path.Combine(outputRoot, page + ".png"));
             await memory.AsStreamForRead().CopyToAsync(file);
         }
-        await File.WriteAllTextAsync(Path.Combine(outputRoot, "smoke.json"), System.Text.Json.JsonSerializer.Serialize(new { Success = true, Pages = 6, Games = 3, UiConfigurationRoundTrip = true, ProgressiveOptions = true, ScheduleTimeRoundTrip = true, StartupAvailable = ViewModel.StartupAvailable, Elevated = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator), NavigationOpen = Navigation.IsPaneOpen, NavigationMode = Navigation.DisplayMode.ToString(), BindingErrors = App.BindingErrors, Timestamp = DateTimeOffset.Now }));
+        await File.WriteAllTextAsync(Path.Combine(outputRoot, "smoke.json"), System.Text.Json.JsonSerializer.Serialize(new { Success = true, Pages = 6, Games = 3, UiConfigurationRoundTrip = true, SourceConfigurationRoundTrip = true, ProgressiveOptions = true, ScheduleTimeRoundTrip = true, StartupAvailable = ViewModel.StartupAvailable, Elevated = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator), NavigationOpen = Navigation.IsPaneOpen, NavigationMode = Navigation.DisplayMode.ToString(), BindingErrors = App.BindingErrors, Timestamp = DateTimeOffset.Now }));
     }
 }

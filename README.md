@@ -35,6 +35,16 @@
 
 常用设置只显示两个程序路径与适用的任务名称。自定义参数、工作目录、超时重试和日志路径归入「更多选项」；命令参数、日志正则和 March7th 专属配置仅在相应场景出现。选择官方入口时自动生成参数，工作目录和日志目录沿用助手默认值。March7th 同目录存在 Launcher 时自动补全界面入口，保留手动选择。通用助手默认手动执行并人工确认。游戏启动参数始终单独保存。
 
+### 源码运行
+
+March7thAssistant、OK-WW 可在「游戏设置」选择二进制或源码运行；BetterGI 使用二进制模式。源码位置可手动填写，留空分别使用 `%LocalAppData%/GameDailyHub/assistants/March7thAssistant`、`%LocalAppData%/GameDailyHub/assistants/ok-wuthering-waves`，跟随 Hub 的程序数据目录。
+
+- **克隆 / 更新代码**：从官方 Git 仓库克隆；已有仓库使用 `git pull --ff-only` 更新，并初始化子模块。非空且未包含 Git 仓库的目录会提示重新选择。
+- **安装环境**：使用已安装的 uv 创建源码目录内的 `.venv`，按 Python 3.12 安装依赖。March7th 优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
+- **一键部署并启动**：依次克隆或更新、安装环境、打开助手界面。进度写入运行日志，可取消当前源码操作。
+
+uv、Git 须已加入 PATH。源码模式的「启动助手」使用虚拟环境运行 March7th 的 `app.py` 或 OK-WW 的 `main.py`；「自动助手」运行 `main.py` 并沿用日常参数、配置校验和结果判定。工作目录固定为源码目录；助手运行期间须先关闭再更新代码或环境。
+
 ### BetterGI
 
 基线为 0.66.0。填写准确的一条龙配置名称。适配器检查 `User/OneDragon/<名称>.json` 及内部 `Name`，避免 BetterGI 找不到名称时回退到界面当前配置。

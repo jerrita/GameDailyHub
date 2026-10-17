@@ -12,7 +12,7 @@ public partial class GameCardViewModel : ObservableObject
     public string ToolName => Config.ToolName;
     public string Glyph => Config.AdapterId switch { "bettergi" => "✦", "march7th" => "✧", "okww" => "◈", _ => "◇" };
     public string GamePathStatus => "游戏：" + (File.Exists(Config.GamePath) ? "已配置" : "未配置");
-    public string ToolPathStatus => "助手：" + (File.Exists(Config.ToolPath) ? "已配置" : "未配置");
+    public string ToolPathStatus => Config.ToolRunMode == AssistantRunMode.Source ? "助手：源码模式" : "助手：" + (File.Exists(Config.ToolPath) ? "已配置" : "未配置");
     private string _processStatus = default!;
     public string ProcessStatus { get => _processStatus; set { SetProperty(ref _processStatus, value); } }
     private string _dailyStatus = default!;

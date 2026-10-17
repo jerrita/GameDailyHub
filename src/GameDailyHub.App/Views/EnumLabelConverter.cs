@@ -16,6 +16,8 @@ public sealed class EnumLabelConverter : IValueConverter
         CompletionMode.AdapterEvidence => "自动识别助手结果",
         CompletionMode.LogRules => "使用自定义日志规则",
         CompletionMode.Manual => "由我确认结果",
+        AssistantRunMode.Binary => "二进制",
+        AssistantRunMode.Source => "源码",
         "Default" => "跟随系统",
         "Light" => "浅色",
         "Dark" => "深色",

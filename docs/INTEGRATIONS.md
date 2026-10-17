@@ -41,4 +41,6 @@
 
 ## 共同策略
 
+源码模式使用 [March7th 官方 uv 工作流与 Python 入口](https://github.com/moesnow/March7thAssistant/blob/main/README_EN.md)、[OK-WW main.py](https://github.com/ok-oldking/ok-wuthering-waves/blob/master/main.py) 及其 `requirements.txt`。环境管理遵循 [uv 虚拟环境文档](https://docs.astral.sh/uv/pip/environments/)，包索引通过命令参数指定[清华镜像](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)，仅作用于该次安装。March7th 的 `uv sync` 同时覆盖项目中名为 `pypi` 的索引。启动使用 uv 管理的 `.venv/Scripts/python.exe`，使日常进程继续直接归属现有 Job Object。
+
 普通启动与自动化的配置及方法独立。固定延时仅用于轮询和清理宽限期；完成必须来自约定信号或人工确认。未知版本、不同日志格式或安装器进程交接无法验证时允许人工模式，并保留原因。新增参数需先更新调查与测试。

@@ -9,6 +9,8 @@ public enum LaunchTarget { Game, Launcher, Assistant }
 public enum TriggerMode { VerifiedCommand, CustomCommand, Manual }
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum CompletionMode { AdapterEvidence, LogRules, Manual }
+[JsonConverter(typeof(JsonStringEnumConverter))]
+public enum AssistantRunMode { Binary, Source }
 
 public sealed class NormalLaunchProfile
 {
@@ -44,6 +46,8 @@ public sealed class GameConfig
     public string ToolPath { get; set; } = "";
     public string ToolGuiPath { get; set; } = "";
     public string ToolConfigPath { get; set; } = "";
+    public AssistantRunMode ToolRunMode { get; set; } = AssistantRunMode.Binary;
+    public string ToolSourceDirectory { get; set; } = "";
     public NormalLaunchProfile Normal { get; set; } = new();
     public DailyTaskProfile Daily { get; set; } = new();
     [JsonIgnore]
