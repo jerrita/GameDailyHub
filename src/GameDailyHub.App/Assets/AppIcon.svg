@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" fill="none">
+  <title>GameDailyHub</title>
+  <desc>A white game controller on an indigo tile with a mint daily completion badge.</desc>
+  <defs><linearGradient id="tile" x1="32" y1="32" x2="480" y2="480" gradientUnits="userSpaceOnUse"><stop stop-color="#4C68EE"/><stop offset="1" stop-color="#6748D5"/></linearGradient></defs>
+  <path d="M 120 32 L 392 32 C 441 32 480 71 480 120 L 480 392 C 480 441 441 480 392 480 L 120 480 C 71 480 32 441 32 392 L 32 120 C 32 71 71 32 120 32 Z" fill="url(#tile)"/>
+  <path d="M 185 164 L 327 164 C 362 164 383 184 395 218 L 423 306 C 436 349 400 377 369 354 L 322 318 L 190 318 L 143 354 C 112 377 76 349 89 306 L 117 218 C 129 184 150 164 185 164 Z" fill="#FFFFFF"/>
+  <path d="M 168 211 L 192 211 L 192 235 L 216 235 L 216 259 L 192 259 L 192 283 L 168 283 L 168 259 L 144 259 L 144 235 L 168 235 Z" fill="#5960E4"/>
+  <circle cx="330" cy="226" r="15" fill="#5960E4"/>
+  <circle cx="364" cy="262" r="15" fill="#5960E4"/>
+  <circle cx="355" cy="373" r="72" fill="#6748D5"/>
+  <circle cx="355" cy="373" r="61" fill="#69E5BE"/>
+  <path d="M 320 361 L 344 385 L 390 337 L 405 352 L 345 415 L 305 376 Z" fill="#173D45"/>
+</svg>

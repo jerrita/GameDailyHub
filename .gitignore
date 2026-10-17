@@ -1,0 +1,17 @@
+# Build output and local dependencies
+**/bin/
+**/obj/
+.packages/
+
+# Generated artifacts and test results
+artifacts/
+TestResults/
+*.coverage
+*.coveragexml
+
+# Local IDE state
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
