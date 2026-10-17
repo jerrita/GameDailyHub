@@ -77,9 +77,9 @@ public sealed class SourceAssistantService(ProcessService processes, string data
                         throw new InvalidOperationException("源码目录非空且未包含 Git 仓库，请选择仓库目录或空目录");
                     var parent = Path.GetDirectoryName(directory) ?? throw new InvalidOperationException("请选择有效的源码目录");
                     Directory.CreateDirectory(parent);
-                    await RunAsync(git, ["clone", "--depth", "1", "--progress", "--recurse-submodules", definition.Repository, directory], parent, log, token);
+                    await RunAsync(git, ["clone", "--depth", "1", "--progress", "--recurse-submodules", "--shallow-submodules", definition.Repository, directory], parent, log, token);
                 }
-                await RunAsync(git, ["-C", directory, "submodule", "update", "--init", "--recursive", "--progress"], directory, log, token);
+                await RunAsync(git, ["-C", directory, "submodule", "update", "--init", "--recursive", "--depth", "1", "--progress"], directory, log, token);
             }
             if (installEnvironment)
             {
