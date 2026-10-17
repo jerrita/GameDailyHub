@@ -23,6 +23,12 @@ public partial class MainViewModel : ObservableObject
     private readonly AdapterRegistry _adapters;
     private readonly SourceAssistantService _sources;
     private CancellationTokenSource? _sourceCancellation;
+    private sealed class SourceOperation
+    {
+        public string Status { get; set; } = "";
+        public string Output { get; set; } = "";
+    }
+    private readonly Dictionary<string, SourceOperation> _sourceOperations = new(StringComparer.OrdinalIgnoreCase);
     private readonly ScheduleEvaluator _schedule = new();
     private readonly List<LogEntry> _logs = [];
     private ExecutionJournal _journal = null!;
@@ -152,6 +158,25 @@ public partial class MainViewModel : ObservableObject
     public Visibility SourceVisibility => SelectedRunMode == AssistantRunMode.Source ? Visibility.Visible : Visibility.Collapsed;
     public Visibility BinaryVisibility => SelectedRunMode == AssistantRunMode.Binary ? Visibility.Visible : Visibility.Collapsed;
     public string SourceDirectoryHint => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? "源码目录：" + _sources.DirectoryFor(game.Config) : "";
+    public string SourceDirectory => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? _sources.DirectoryFor(game.Config) : "";
+    public bool CanOpenSourceDirectory => Directory.Exists(SourceDirectory);
+    public string SourceOutput => _sourceOperations.TryGetValue(SourceDirectory, out var operation) ? operation.Output : "";
+    public Visibility SourceOutputVisibility => SourceOutput.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public string SourceStatus
+    {
+        get
+        {
+            if (SelectedGame is not { } game || !SourceAssistantService.Supports(game.Config.AdapterId)) return "";
+            var code = File.Exists(_sources.EntryPath(game.Config, false)) ? "源码已就绪" : "源码未就绪";
+            var environment = File.Exists(_sources.PythonPath(game.Config)) ? "环境已安装" : "环境未安装";
+            var status = _sourceOperations.TryGetValue(SourceDirectory, out var operation) ? operation.Status : "";
+            return $"当前状态：{code} · {environment}" + (status.Length > 0 ? " · " + status : "");
+        }
+    }
+    private void RefreshSourceDetails()
+    {
+        foreach (var name in new[] { nameof(SourceStatus), nameof(CanOpenSourceDirectory), nameof(SourceOutput), nameof(SourceOutputVisibility) }) OnPropertyChanged(name);
+    }
     public Visibility SelectionVisibility => SelectedGame is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility EmptySelectionVisibility => SelectedGame is null ? Visibility.Visible : Visibility.Collapsed;
     public string SelectedToolPath
@@ -195,6 +220,7 @@ public partial class MainViewModel : ObservableObject
             SelectedGame?.Refresh();
             foreach (var name in new[] { nameof(SelectedAdapterId), nameof(SelectedTrigger), nameof(SelectedCompletion), nameof(ProfileVisibility), nameof(AutomaticVisibility), nameof(CustomArgumentsVisibility), nameof(LogRulesVisibility), nameof(March7thVisibility), nameof(ProfileHeader), nameof(ProfileHint), nameof(ToolPathHeader), nameof(ToolPathPlaceholder), nameof(SelectedToolPath), nameof(SelectionVisibility), nameof(EmptySelectionVisibility), nameof(ExecutionSummary) }) OnPropertyChanged(name);
             foreach (var name in new[] { nameof(SelectedRunMode), nameof(SelectedSourceDirectory), nameof(RunModeVisibility), nameof(SourceVisibility), nameof(BinaryVisibility), nameof(SourceDirectoryHint) }) OnPropertyChanged(name);
+            RefreshSourceDetails();
         }
         finally { _refreshingOptions = false; }
     }
@@ -317,23 +343,47 @@ public partial class MainViewModel : ObservableObject
     {
         if (!IsIdle || SelectedGame is null || SelectedRunMode != AssistantRunMode.Source) return;
         var game = JsonSerializer.Deserialize<GameConfig>(JsonSerializer.Serialize(SelectedGame.Config, JsonDefaults.Options), JsonDefaults.Options)!;
+        var directory = _sources.DirectoryFor(game);
+        var operation = new SourceOperation { Status = installEnvironment ? "正在安装环境" : "正在克隆 / 更新代码" };
+        _sourceOperations[directory] = operation;
+        RefreshSourceDetails();
         using var cancellation = new CancellationTokenSource();
         _sourceCancellation = cancellation;
         SourceStateChanged();
         try
         {
             await SaveAsync();
-            Show("正在处理源码助手，进度可在运行日志中查看。");
+            Show("正在处理源码助手，进度显示在下方命令输出中。");
             await Task.Run(() => _sources.PrepareAsync(game, updateCode, installEnvironment,
-                line => _journal.Log(new(DateTimeOffset.Now, "源码", line, GameId: game.Id)), cancellation.Token));
+                line =>
+                {
+                    _journal.Log(new(DateTimeOffset.Now, "源码", line, GameId: game.Id));
+                    _dispatcher.TryEnqueue(() =>
+                    {
+                        operation.Output += line + Environment.NewLine;
+                        if (operation.Output.Length > 60000)
+                        {
+                            var start = operation.Output.IndexOf('\n', operation.Output.Length - 60000);
+                            operation.Output = operation.Output[(start + 1)..];
+                        }
+                        RefreshSourceDetails();
+                    });
+                }, cancellation.Token));
+            operation.Status = installEnvironment ? "环境安装完成" : "代码更新完成";
             Show(installEnvironment ? "源码环境已安装" : "源码已更新，请安装环境后启动");
         }
-        catch (OperationCanceledException) { Show("源码操作已取消"); }
-        catch (Exception e) { Show(e.Message); _journal.Log(new(DateTimeOffset.Now, "错误", e.Message, GameId: game.Id)); }
+        catch (OperationCanceledException) { operation.Status = "操作已取消"; Show("源码操作已取消"); }
+        catch (Exception e)
+        {
+            operation.Status = "操作失败";
+            operation.Output += e.Message + Environment.NewLine;
+            Show(e.Message); _journal.Log(new(DateTimeOffset.Now, "错误", e.Message, GameId: game.Id));
+        }
         finally
         {
             _sourceCancellation = null;
             SourceStateChanged();
+            RefreshSourceDetails();
             foreach (var card in Games) await GuardAsync(() => RefreshCardAsync(card));
         }
     }
@@ -451,6 +501,7 @@ public partial class MainViewModel : ObservableObject
         Elapsed = started is null ? "00:00:00" : (DateTimeOffset.Now - started.Value).ToString(@"hh\:mm\:ss");
         if (++_processRefreshTicks % 5 == 0)
         {
+            RefreshSourceDetails();
             foreach (var card in Games.ToArray())
             {
                 var paths = ProcessPaths(card.Config).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();

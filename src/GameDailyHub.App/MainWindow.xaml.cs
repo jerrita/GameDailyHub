@@ -26,6 +26,12 @@ public sealed partial class MainWindow : Window
         RootGrid.DataContext = ViewModel;
         ViewModel.PropertyChanged += (_, e) =>
         {
+            if (e.PropertyName == nameof(MainViewModel.SourceOutput))
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    SourceOutputScroll.UpdateLayout();
+                    SourceOutputScroll.ChangeView(null, SourceOutputScroll.ScrollableHeight, null, true);
+                });
             if (e.PropertyName == nameof(MainViewModel.SelectedPage))
                 Navigation.SelectedItem = ViewModel.SelectedPage == "settings" ? Navigation.SettingsItem
                     : Navigation.MenuItems.OfType<NavigationViewItem>().FirstOrDefault(item => item.Tag?.ToString() == ViewModel.SelectedPage);
@@ -116,6 +122,15 @@ public sealed partial class MainWindow : Window
     private void OpenLogs_Click(object sender, RoutedEventArgs args)
     {
         try { Directory.CreateDirectory(ViewModel.ActualLogDirectory); Process.Start(new ProcessStartInfo(ViewModel.ActualLogDirectory) { UseShellExecute = true }); }
+        catch (Exception e) { ViewModel.Show(e.Message); }
+    }
+    private void OpenSource_Click(object sender, RoutedEventArgs args)
+    {
+        try
+        {
+            if (Directory.Exists(ViewModel.SourceDirectory))
+                Process.Start(new ProcessStartInfo(ViewModel.SourceDirectory) { UseShellExecute = true });
+        }
         catch (Exception e) { ViewModel.Show(e.Message); }
     }
     internal async Task SmokeAsync(string outputRoot)
