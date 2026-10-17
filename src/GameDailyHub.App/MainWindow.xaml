@@ -113,7 +113,6 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8">
                                             <Button Content="克隆 / 更新代码" Command="{x:Bind ViewModel.UpdateSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
                                             <Button Content="安装环境" Command="{x:Bind ViewModel.InstallSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
-                                            <Button Content="一键部署并启动" Command="{x:Bind ViewModel.SetupSourceCommand}" Style="{ThemeResource AccentButtonStyle}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
                                         </StackPanel>
                                     </StackPanel>
                                     <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.SourceBusyVisibility, Mode=OneWay}">

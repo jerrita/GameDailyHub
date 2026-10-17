@@ -41,7 +41,8 @@ March7thAssistant、OK-WW 可在「游戏设置」选择二进制或源码运行
 
 - **克隆 / 更新代码**：从官方 Git 仓库克隆；已有仓库使用 `git pull --ff-only` 更新，并初始化子模块。非空且未包含 Git 仓库的目录会提示重新选择。
 - **安装环境**：使用已安装的 uv 创建源码目录内的 `.venv`，按 Python 3.12 安装依赖。March7th 优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
-- **一键部署并启动**：依次克隆或更新、安装环境、打开助手界面。进度写入运行日志，可取消当前源码操作。
+
+操作进度写入运行日志，可取消当前源码操作。代码和环境准备完成后，使用「启动助手」打开界面。
 
 uv、Git 须已加入 PATH。源码模式的「启动助手」使用虚拟环境运行 March7th 的 `app.py` 或 OK-WW 的 `main.py`；「自动助手」运行 `main.py` 并沿用日常参数、配置校验和结果判定。工作目录固定为源码目录；助手运行期间须先关闭再更新代码或环境。
 

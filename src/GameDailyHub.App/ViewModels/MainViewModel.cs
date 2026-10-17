@@ -205,7 +205,6 @@ public partial class MainViewModel : ObservableObject
     public IAsyncRelayCommand ApplyStartupCommand { get; }
     public IAsyncRelayCommand UpdateSourceCommand { get; }
     public IAsyncRelayCommand InstallSourceCommand { get; }
-    public IAsyncRelayCommand SetupSourceCommand { get; }
     public IRelayCommand CancelSourceCommand { get; }
     public IRelayCommand StopCommand { get; }
     public IRelayCommand SkipCommand { get; }
@@ -237,9 +236,8 @@ public partial class MainViewModel : ObservableObject
         RunAllCommand = new AsyncRelayCommand(() => RunTasksAsync(_config.Tasks.Where(t => t.Enabled).ToArray()));
         SaveCommand = new AsyncRelayCommand(() => GuardAsync(SaveAsync));
         RefreshHistoryCommand = new AsyncRelayCommand(() => GuardAsync(RefreshHistoryAsync));
-        UpdateSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(true, false, false));
-        InstallSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(false, true, false));
-        SetupSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(true, true, true));
+        UpdateSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(true, false));
+        InstallSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(false, true));
         CancelSourceCommand = new RelayCommand(() => _sourceCancellation?.Cancel());
         ApplyStartupCommand = new AsyncRelayCommand(async () =>
         {
@@ -315,7 +313,7 @@ public partial class MainViewModel : ObservableObject
         ThemeRequested?.Invoke(_config.Theme);
         Show("已保存");
     }
-    private async Task PrepareSourceAsync(bool updateCode, bool installEnvironment, bool launch)
+    private async Task PrepareSourceAsync(bool updateCode, bool installEnvironment)
     {
         if (!IsIdle || SelectedGame is null || SelectedRunMode != AssistantRunMode.Source) return;
         var game = JsonSerializer.Deserialize<GameConfig>(JsonSerializer.Serialize(SelectedGame.Config, JsonDefaults.Options), JsonDefaults.Options)!;
@@ -328,12 +326,7 @@ public partial class MainViewModel : ObservableObject
             Show("正在处理源码助手，进度可在运行日志中查看。");
             await Task.Run(() => _sources.PrepareAsync(game, updateCode, installEnvironment,
                 line => _journal.Log(new(DateTimeOffset.Now, "源码", line, GameId: game.Id)), cancellation.Token));
-            if (launch)
-            {
-                var result = await _sources.LaunchGuiAsync(game, cancellation.Token);
-                Show(result.Message);
-            }
-            else Show(installEnvironment ? "源码环境已安装" : "源码已更新，请安装环境后启动");
+            Show(installEnvironment ? "源码环境已安装" : "源码已更新，请安装环境后启动");
         }
         catch (OperationCanceledException) { Show("源码操作已取消"); }
         catch (Exception e) { Show(e.Message); _journal.Log(new(DateTimeOffset.Now, "错误", e.Message, GameId: game.Id)); }
