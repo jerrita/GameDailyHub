@@ -26,15 +26,12 @@ public sealed partial class MainWindow : Window
         RootGrid.DataContext = ViewModel;
         ViewModel.PropertyChanged += (_, e) =>
         {
-            if (e.PropertyName == nameof(MainViewModel.SourceOutput))
-                DispatcherQueue.TryEnqueue(() =>
-                {
-                    SourceOutputScroll.UpdateLayout();
-                    SourceOutputScroll.ChangeView(null, SourceOutputScroll.ScrollableHeight, null, true);
-                });
             if (e.PropertyName == nameof(MainViewModel.SelectedPage))
+            {
                 Navigation.SelectedItem = ViewModel.SelectedPage == "settings" ? Navigation.SettingsItem
                     : Navigation.MenuItems.OfType<NavigationViewItem>().FirstOrDefault(item => item.Tag?.ToString() == ViewModel.SelectedPage);
+                PageScroll.ChangeView(null, 0, null, true);
+            }
         };
         AppWindow.Resize(new global::Windows.Graphics.SizeInt32(1440, 980));
         RootGrid.Loaded += (_, _) =>
@@ -179,6 +176,29 @@ public sealed partial class MainWindow : Window
         if (persisted.Schedule.Time != "09:35" || persisted.Schedule.Enabled) throw new InvalidOperationException("时间选择器绑定或默认关闭状态错误");
         AdvancedOptions.IsExpanded = false;
         ViewModel.HasMessage = false;
+        ViewModel.SelectedPage = "home";
+        for (var line = 1; line <= 80; line++) ViewModel.LogLines.Add($"日志滚动检查 {line:000}：用于检查日志区域与滚动位置。");
+        RootGrid.UpdateLayout();
+        await Task.Delay(150);
+        var logScroll = (ScrollViewer)HomeLogOutput.FindName("OutputScroll");
+        if (HomeLogOutput.ActualHeight != 230 || logScroll.ScrollableHeight <= 0)
+            throw new InvalidOperationException("实时日志应在固定高度内滚动");
+        ViewModel.LogLines.Add("日志滚动检查：追加输出");
+        await Task.Delay(150);
+        if (logScroll.ScrollableHeight - logScroll.VerticalOffset > 2)
+            throw new InvalidOperationException("实时日志未跟随最新输出");
+        logScroll.ChangeView(null, 40, null, true);
+        await Task.Delay(150);
+        var readingOffset = logScroll.VerticalOffset;
+        ViewModel.LogLines.Add("日志滚动检查：查看历史时追加输出");
+        await Task.Delay(150);
+        if (Math.Abs(logScroll.VerticalOffset - readingOffset) > 2)
+            throw new InvalidOperationException("追加日志改变了历史阅读位置");
+        PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, true);
+        ViewModel.SelectedPage = "logs";
+        RootGrid.UpdateLayout();
+        await Task.Delay(150);
+        if (PageScroll.VerticalOffset > 2) throw new InvalidOperationException("切换页面后未回到顶部");
         foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source" })
         {
             ViewModel.SelectedPage = page == "source" ? "config" : page;

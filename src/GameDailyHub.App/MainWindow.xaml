@@ -29,7 +29,7 @@
             <Grid Padding="28,12,28,20" RowSpacing="16">
                 <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
                 <InfoBar IsOpen="{x:Bind ViewModel.HasMessage, Mode=TwoWay}" Severity="Informational" Message="{x:Bind ViewModel.Message, Mode=OneWay}"/>
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ScrollViewer x:Name="PageScroll" Grid.Row="1" Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                     <Grid>
                         <StackPanel Spacing="20" Visibility="{x:Bind ViewModel.HomeVisibility, Mode=OneWay}">
                             <StackPanel><TextBlock Text="游戏总览" Style="{ThemeResource TitleTextBlockStyle}"/><TextBlock Text="集中管理游戏与助手，按需启动或依次完成日常。" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Margin="0,8,0,0"/></StackPanel>
@@ -76,7 +76,7 @@
                                 <StackPanel Spacing="12"><TextBlock Text="需要人工确认" FontSize="18" FontWeight="SemiBold"/><TextBlock Text="查看助手与日志，确认本轮结果。半自动模式请先在助手内执行任务。" TextWrapping="Wrap"/><CheckBox Content="我已确认当前自动化任务停止" IsChecked="{x:Bind ViewModel.ConfirmedStopped, Mode=TwoWay}"/><StackPanel Orientation="Horizontal" Spacing="8"><Button Content="确认成功" Command="{x:Bind ViewModel.ConfirmSuccessCommand}"/><Button Content="确认失败" Command="{x:Bind ViewModel.ConfirmFailureCommand}"/><Button Content="确认跳过" Command="{x:Bind ViewModel.ConfirmSkipCommand}"/></StackPanel></StackPanel>
                             </Border>
                             <TextBlock Text="实时日志" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                            <ListView ItemsSource="{x:Bind ViewModel.LogLines}" Height="230" SelectionMode="None" FontFamily="Consolas" FontSize="12"><ListView.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" IsTextSelectionEnabled="True"/></DataTemplate></ListView.ItemTemplate></ListView>
+                            <views:LogOutputView x:Name="HomeLogOutput" Lines="{x:Bind ViewModel.LogLines}" Height="230"/>
                         </StackPanel>
 
                         <StackPanel Spacing="18" Visibility="{x:Bind ViewModel.TasksVisibility, Mode=OneWay}">
@@ -123,9 +123,7 @@
                                     </StackPanel>
                                     <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.SourceOutputVisibility, Mode=OneWay}">
                                         <TextBlock Text="命令输出"/>
-                                        <ScrollViewer x:Name="SourceOutputScroll" Height="220" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                                            <TextBlock Text="{x:Bind ViewModel.SourceOutput, Mode=OneWay}" FontFamily="Consolas" IsTextSelectionEnabled="True"/>
-                                        </ScrollViewer>
+                                        <views:LogOutputView Text="{x:Bind ViewModel.SourceOutput, Mode=OneWay}" Height="220"/>
                                     </StackPanel>
                                 </StackPanel>
                                 <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
@@ -183,7 +181,7 @@
                             <ListView ItemsSource="{x:Bind ViewModel.History}" SelectedItem="{x:Bind ViewModel.SelectedHistory, Mode=TwoWay}" Height="270"><ListView.ItemTemplate><DataTemplate x:DataType="vm:HistoryRowViewModel"><StackPanel Padding="4,8" Spacing="5"><TextBlock Text="{x:Bind Title}" FontWeight="SemiBold"/><TextBlock Text="{x:Bind Subtitle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></DataTemplate></ListView.ItemTemplate></ListView>
                             <TextBox Text="{x:Bind ViewModel.HistoryDetails, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="210" FontFamily="Consolas" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
                             <TextBlock Text="本次会话实时日志" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                            <ListView ItemsSource="{x:Bind ViewModel.LogLines}" Height="250" SelectionMode="None"><ListView.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" FontFamily="Consolas" FontSize="12" IsTextSelectionEnabled="True"/></DataTemplate></ListView.ItemTemplate></ListView>
+                            <views:LogOutputView Lines="{x:Bind ViewModel.LogLines}" Height="250"/>
                         </StackPanel>
 
                         <StackPanel Spacing="20" MaxWidth="720" HorizontalAlignment="Left" Visibility="{x:Bind ViewModel.ScheduleVisibility, Mode=OneWay}">
