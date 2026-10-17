@@ -560,18 +560,28 @@ public partial class MainViewModel : ObservableObject
     public async Task ExportAssistantAsync(string path) => await GuardAsync(async () =>
     {
         var game = SelectedGame?.Config ?? throw new InvalidOperationException("请先选择游戏");
-        await File.WriteAllTextAsync(path, AssistantProfileService.Export(game));
-        Show(game.Name + "：助手配置已导出（不含安装路径，可在其它机器导入）");
+        ConfigurationSuggestions.Apply(game);
+        var json = await Task.Run(() => AssistantProfileService.Export(game, AssistantProfileService.RootFor(game, _sources)));
+        await File.WriteAllTextAsync(path, json);
+        Show(game.Name + "：助手配置已导出。文件含助手自身的配置，可能包含通知密钥等敏感内容，请妥善保管；其中的本机路径不会被导入。");
     });
     public async Task ImportAssistantAsync(string path) => await GuardAsync(async () =>
     {
         if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后导入助手配置");
         var card = SelectedGame ?? throw new InvalidOperationException("请先选择游戏");
-        AssistantProfileService.Import(await File.ReadAllTextAsync(path), card.Config);
-        ConfigurationSuggestions.Apply(card.Config);
+        var game = card.Config;
+        ConfigurationSuggestions.Apply(game);
+        var assistantPaths = (game.ToolRunMode == AssistantRunMode.Source ? [_sources.PythonPath(game)] : new[] { game.ToolPath, game.ToolGuiPath }).Where(p => !string.IsNullOrWhiteSpace(p)).ToArray();
+        var json = await File.ReadAllTextAsync(path);
+        var result = await Task.Run(() =>
+        {
+            if (assistantPaths.Any(p => _processes.FindRunning(p).Count > 0)) throw new InvalidOperationException("助手正在运行，请先关闭后再导入，否则它退出时会覆盖导入的配置");
+            return AssistantProfileService.Import(json, game, AssistantProfileService.RootFor(game, _sources));
+        });
+        ConfigurationSuggestions.Apply(game);
         // Replace the selection notification so classic bindings re-read the imported values.
         SelectedGame = null; SelectedGame = card; card.Refresh(); RefreshConfigurationOptions();
-        Show(card.Name + "：助手配置已导入，请核对后点击保存。");
+        Show(card.Name + $"：已导入 {result.FilesWritten} 个助手配置文件（覆盖前备份 {result.BackupsMade} 个，后缀 .gdh-*.bak）；日常执行方式请核对后点击保存。");
     });
     public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
     private Visibility VisibilityFor(string page) => SelectedPage == page ? Visibility.Visible : Visibility.Collapsed;

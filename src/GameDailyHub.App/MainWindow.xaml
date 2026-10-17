@@ -146,7 +146,7 @@
                                         <StackPanel Spacing="8">
                                             <TextBlock Text="助手配置复用" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入助手配置" Click="ImportAssistant_Click"/><Button Content="导出助手配置" Click="ExportAssistant_Click"/></StackPanel>
-                                            <TextBlock Text="仅包含日常执行方式、结果判定、超时与重试；不含游戏及助手的安装路径。导入后需保存。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                            <TextBlock Text="导出助手自身的配置文件（BetterGI 的 User 配置与一条龙、March7th 的 config.yaml、OK-WW 的 configs）及 Hub 中的日常执行方式。导入时保留本机路径，覆盖前自动备份；助手须已关闭。文件可能含通知密钥等敏感信息。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                         </StackPanel>
                                         <Expander Header="启动方式" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                             <StackPanel Spacing="14">
