@@ -1,50 +1,54 @@
-using System.Diagnostics;
+using System.ComponentModel;
 using GameDailyHub.App.ViewModels;
-using GameDailyHub.Windows.Services;
+using GameDailyHub.App.Views;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media.Imaging;
-using System.Runtime.InteropServices.WindowsRuntime;
-using global::Windows.Graphics.Imaging;
-using global::Windows.Storage.Streams;
+using Microsoft.UI.Xaml.Media.Animation;
+using Microsoft.UI.Xaml.Navigation;
 using WinRT.Interop;
 
 namespace GameDailyHub.App;
 
 public sealed partial class MainWindow : Window
 {
+    private static readonly Dictionary<string, Type> Pages = new()
+    {
+        ["home"] = typeof(HomePage),
+        ["tasks"] = typeof(TasksPage),
+        ["config"] = typeof(GameConfigPage),
+        ["logs"] = typeof(LogsPage),
+        ["schedule"] = typeof(SchedulePage),
+        ["settings"] = typeof(SettingsPage)
+    };
     public MainViewModel ViewModel { get; }
     private readonly DispatcherTimer _timer = new() { Interval = TimeSpan.FromSeconds(1) };
-    private bool _tickBusy, _closingPrompt, _applyingStartup, _closeReady;
+    private readonly PageNavigationContext _pageContext;
+    private bool _tickBusy, _closingPrompt, _closeReady, _syncingNavigation;
     public bool InitializationSucceeded { get; private set; }
+
     public MainWindow()
     {
         ViewModel = new(DispatcherQueue, App.SmokeRoot is null ? null : Path.Combine(App.SmokeRoot, "data"));
         InitializeComponent();
+        _pageContext = new(ViewModel, WindowNative.GetWindowHandle(this));
+        var backKey = new KeyboardAccelerator { Key = global::Windows.System.VirtualKey.GoBack };
+        backKey.Invoked += GoBack_Invoked;
+        RootGrid.KeyboardAccelerators.Add(backKey);
+        var forwardKey = new KeyboardAccelerator { Key = global::Windows.System.VirtualKey.GoForward };
+        forwardKey.Invoked += GoForward_Invoked;
+        RootGrid.KeyboardAccelerators.Add(forwardKey);
         RootGrid.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnNavigationPointerPressed), true);
-        RootGrid.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnNavigationKeyDown), true);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
         RootGrid.DataContext = ViewModel;
-        ViewModel.PropertyChanged += (_, e) =>
-        {
-            if (e.PropertyName == nameof(MainViewModel.SelectedPage))
-            {
-                Navigation.SelectedItem = ViewModel.SelectedPage == "settings" ? Navigation.SettingsItem
-                    : Navigation.MenuItems.OfType<NavigationViewItem>().FirstOrDefault(item => item.Tag?.ToString() == ViewModel.SelectedPage);
-                PageScroll.ChangeView(null, 0, null, true);
-            }
-        };
-        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(1440, 980));
-        RootGrid.Loaded += (_, _) =>
-        {
-            var scale = RootGrid.XamlRoot.RasterizationScale;
-            var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
-            var width = Math.Min((int)(1440 * scale), (int)(work.Width * 0.95));
-            var height = Math.Min((int)(900 * scale), (int)(work.Height * 0.94));
-            AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(work.X + (work.Width - width) / 2, work.Y + (work.Height - height) / 2, width, height));
-        };
+        ViewModel.PropertyChanged += ViewModel_PropertyChanged;
+        var scale = GetDpiForWindow(_pageContext.WindowHandle) / 96d;
+        var work = DisplayArea.GetFromWindowId(AppWindow.Id, DisplayAreaFallback.Primary).WorkArea;
+        var width = Math.Min((int)(1440 * scale), (int)(work.Width * 0.95));
+        var height = Math.Min((int)(900 * scale), (int)(work.Height * 0.94));
+        AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(work.X + (work.Width - width) / 2, work.Y + (work.Height - height) / 2, width, height));
+        RootGrid.Loaded += (_, _) => NavigateToPage(ViewModel.SelectedPage);
         ViewModel.ThemeRequested += theme => RootGrid.RequestedTheme = Enum.TryParse<ElementTheme>(theme, out var value) ? value : ElementTheme.Default;
         _timer.Tick += async (_, _) =>
         {
@@ -55,8 +59,13 @@ public sealed partial class MainWindow : Window
             finally { _tickBusy = false; }
         };
         AppWindow.Closing += OnClosing;
-        Closed += (_, _) => _timer.Stop();
+        Closed += (_, _) =>
+        {
+            _timer.Stop();
+            ViewModel.PropertyChanged -= ViewModel_PropertyChanged;
+        };
     }
+
     public async Task InitializeAsync()
     {
         try
@@ -67,30 +76,80 @@ public sealed partial class MainWindow : Window
         }
         catch (Exception e) { ViewModel.Show("初始化失败：" + e); }
     }
+
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs args)
+    {
+        if (args.PropertyName == nameof(MainViewModel.SelectedPage) && RootGrid.IsLoaded)
+            NavigateToPage(ViewModel.SelectedPage);
+    }
+
+    private void NavigateToPage(string page, NavigationTransitionInfo? transition = null)
+    {
+        if (_syncingNavigation || !Pages.TryGetValue(page, out var pageType) || ContentFrame.CurrentSourcePageType == pageType) return;
+        ContentFrame.Navigate(pageType, _pageContext, transition ?? new EntranceNavigationTransitionInfo());
+    }
+
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
-        ViewModel.SelectedPage = args.IsSettingsSelected ? "settings" : (args.SelectedItem as NavigationViewItem)?.Tag?.ToString() ?? "home";
+        if (_syncingNavigation || !RootGrid.IsLoaded) return;
+        var page = args.IsSettingsSelected ? "settings" : (args.SelectedItem as NavigationViewItem)?.Tag?.ToString();
+        if (page is not null) NavigateToPage(page, args.RecommendedNavigationTransitionInfo);
     }
+
+    private void ContentFrame_Navigated(object sender, NavigationEventArgs args)
+    {
+        var page = Pages.First(entry => entry.Value == args.SourcePageType).Key;
+        _syncingNavigation = true;
+        try
+        {
+            ViewModel.SelectedPage = page;
+            Navigation.SelectedItem = page == "settings" ? Navigation.SettingsItem
+                : Navigation.MenuItems.OfType<NavigationViewItem>().First(item => item.Tag?.ToString() == page);
+            Navigation.IsBackEnabled = ContentFrame.CanGoBack;
+        }
+        finally { _syncingNavigation = false; }
+    }
+
+    private void ContentFrame_NavigationFailed(object sender, NavigationFailedEventArgs args)
+        => throw new InvalidOperationException("无法打开页面：" + args.SourcePageType.Name, args.Exception);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(nint window);
+
+    private bool TryGoBack()
+    {
+        if (Navigation.IsPaneOpen && Navigation.DisplayMode is NavigationViewDisplayMode.Compact or NavigationViewDisplayMode.Minimal)
+        {
+            Navigation.IsPaneOpen = false;
+            return true;
+        }
+        if (!ContentFrame.CanGoBack) return false;
+        ContentFrame.GoBack();
+        return true;
+    }
+
+    private bool TryGoForward()
+    {
+        if (!ContentFrame.CanGoForward) return false;
+        ContentFrame.GoForward();
+        return true;
+    }
+
+    private void Navigation_BackRequested(NavigationView sender, NavigationViewBackRequestedEventArgs args) => TryGoBack();
+    private void GoBack_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) => args.Handled = TryGoBack();
+    private void GoForward_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) => args.Handled = TryGoForward();
+
     private void OnNavigationPointerPressed(object sender, PointerRoutedEventArgs args)
     {
         switch (args.GetCurrentPoint(RootGrid).Properties.PointerUpdateKind)
         {
             case Microsoft.UI.Input.PointerUpdateKind.XButton1Pressed:
-                ViewModel.GoBack(); args.Handled = true; break;
+                TryGoBack(); args.Handled = true; break;
             case Microsoft.UI.Input.PointerUpdateKind.XButton2Pressed:
-                ViewModel.GoForward(); args.Handled = true; break;
+                TryGoForward(); args.Handled = true; break;
         }
     }
-    private void OnNavigationKeyDown(object sender, KeyRoutedEventArgs args)
-    {
-        switch (args.Key)
-        {
-            case global::Windows.System.VirtualKey.GoBack:
-                ViewModel.GoBack(); args.Handled = true; break;
-            case global::Windows.System.VirtualKey.GoForward:
-                ViewModel.GoForward(); args.Handled = true; break;
-        }
-    }
+
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
         if (_closeReady) return;
@@ -113,188 +172,5 @@ public sealed partial class MainWindow : Window
             }
         }
         finally { _closingPrompt = false; }
-    }
-    private void Browse_Click(object sender, RoutedEventArgs args)
-    {
-        var game = ViewModel.SelectedGame;
-        if (game is null) return;
-        var property = ((Button)sender).Tag.ToString()!;
-        var filter = property == "ToolConfigPath" ? "配置文件\0*.yaml;*.yml;*.json\0所有文件\0*.*\0\0" : "可执行文件\0*.exe\0\0";
-        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), filter);
-        if (path is null) return;
-        if (property == "ToolPath")
-            ViewModel.SelectedToolPath = path;
-        else typeof(Core.Models.GameConfig).GetProperty(property)!.SetValue(game.Config, path);
-        // Replace the selection notification so classic bindings re-read the changed path.
-        ViewModel.SelectedGame = null; ViewModel.SelectedGame = game; game.Refresh();
-    }
-    private void Theme_Changed(object sender, SelectionChangedEventArgs args)
-    {
-        if (InitializationSucceeded) ViewModel.ApplyTheme();
-    }
-    private async void Startup_Toggled(object sender, RoutedEventArgs args)
-    {
-        if (!InitializationSucceeded || _applyingStartup) return;
-        _applyingStartup = true;
-        try { ViewModel.StartupEnabled = ((ToggleSwitch)sender).IsOn; await ViewModel.ApplyStartupCommand.ExecuteAsync(null); }
-        finally { _applyingStartup = false; }
-    }
-    private async void Import_Click(object sender, RoutedEventArgs args)
-    {
-        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "JSON 配置\0*.json\0\0");
-        if (path is not null) await ViewModel.ImportAsync(path);
-    }
-    private async void Export_Click(object sender, RoutedEventArgs args)
-    {
-        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "JSON 配置\0*.json\0\0", true);
-        if (path is not null) await ViewModel.ExportAsync(path);
-    }
-    private async void ImportAssistant_Click(object sender, RoutedEventArgs args)
-    {
-        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "助手配置\0*.json\0\0");
-        if (path is not null) await ViewModel.ImportAssistantAsync(path);
-    }
-    private async void ExportAssistant_Click(object sender, RoutedEventArgs args)
-    {
-        var path = FileDialogService.Choose(WindowNative.GetWindowHandle(this), "助手配置\0*.json\0\0", true);
-        if (path is not null) await ViewModel.ExportAssistantAsync(path);
-    }
-    private void OpenLogs_Click(object sender, RoutedEventArgs args)
-    {
-        try { Directory.CreateDirectory(ViewModel.ActualLogDirectory); Process.Start(new ProcessStartInfo(ViewModel.ActualLogDirectory) { UseShellExecute = true }); }
-        catch (Exception e) { ViewModel.Show(e.Message); }
-    }
-    private void OpenSource_Click(object sender, RoutedEventArgs args)
-    {
-        try
-        {
-            if (Directory.Exists(ViewModel.SourceDirectory))
-                Process.Start(new ProcessStartInfo(ViewModel.SourceDirectory) { UseShellExecute = true });
-        }
-        catch (Exception e) { ViewModel.Show(e.Message); }
-    }
-    internal async Task SmokeAsync(string outputRoot)
-    {
-        void Mark(string step) => File.AppendAllText(Path.Combine(outputRoot, "steps.log"), step + "\n");
-        Mark("Smoke");
-        if (!InitializationSucceeded) throw new InvalidOperationException(ViewModel.Message);
-        if (!ViewModel.Games.Select(game => game.Config.AdapterId).SequenceEqual(Core.Models.GameCatalog.Games.Select(game => game.AdapterId)))
-            throw new InvalidOperationException("支持的游戏未正确载入");
-        RootGrid.UpdateLayout();
-        await Task.Delay(150);
-        void VerifyNavigation(string page)
-        {
-            var selected = Navigation.SelectedItem is not null && ReferenceEquals(Navigation.SelectedItem, Navigation.SettingsItem) ? "settings" : (Navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString();
-            if (ViewModel.SelectedPage != page || selected != page) throw new InvalidOperationException($"导航历史或选中项错误：预期 {page}，页面 {ViewModel.SelectedPage}，选中项 {selected ?? "空"}");
-        }
-        ViewModel.GoBack(); ViewModel.GoForward(); VerifyNavigation("home");
-        ViewModel.SelectedPage = "tasks";
-        ViewModel.SelectedPage = "settings";
-        ViewModel.GoBack(); VerifyNavigation("tasks");
-        ViewModel.GoBack(); ViewModel.GoBack(); VerifyNavigation("home");
-        ViewModel.GoForward(); VerifyNavigation("tasks");
-        ViewModel.GoForward(); ViewModel.GoForward(); VerifyNavigation("settings");
-        ViewModel.GoBack();
-        ViewModel.SelectedPage = "tasks";
-        ViewModel.GoForward(); VerifyNavigation("settings");
-        ViewModel.GoBack();
-        ViewModel.SelectedPage = "logs";
-        ViewModel.GoForward(); VerifyNavigation("logs");
-        ViewModel.GoBack(); VerifyNavigation("tasks");
-        ViewModel.SelectedPage = "home";
-        Mark("Navigation history");
-        ViewModel.SelectedGame!.ConfigureCommand.Execute(null);
-        if (ViewModel.SelectedPage != "config") throw new InvalidOperationException("卡片配置导航失败");
-        if (AdvancedOptions.IsExpanded) throw new InvalidOperationException("高级设置应默认收起");
-        if (ViewModel.ProfileVisibility != Visibility.Visible || ViewModel.CustomArgumentsVisibility != Visibility.Collapsed || ViewModel.LogRulesVisibility != Visibility.Collapsed)
-            throw new InvalidOperationException("默认配置显示项不正确");
-        ViewModel.SelectedGame = ViewModel.Games[2];
-        Mark("Select OK-WW");
-        if (ViewModel.ProfileVisibility != Visibility.Collapsed || ViewModel.March7thVisibility != Visibility.Collapsed) throw new InvalidOperationException("OK-WW 应隐藏其他助手选项");
-        ViewModel.SelectedTrigger = Core.Models.TriggerMode.CustomCommand;
-        ViewModel.SelectedCompletion = Core.Models.CompletionMode.LogRules;
-        if (ViewModel.CustomArgumentsVisibility != Visibility.Visible || ViewModel.LogRulesVisibility != Visibility.Visible) throw new InvalidOperationException("自定义设置未按需显示");
-        ViewModel.SelectedTrigger = Core.Models.TriggerMode.Manual;
-        if (ViewModel.AutomaticVisibility != Visibility.Collapsed) throw new InvalidOperationException("手动执行应隐藏自动参数与结果规则");
-        ViewModel.SelectedTrigger = Core.Models.TriggerMode.VerifiedCommand;
-        ViewModel.SelectedCompletion = Core.Models.CompletionMode.AdapterEvidence;
-        ViewModel.SelectedGame = ViewModel.Games[0];
-        Mark("Select BetterGI");
-        AdvancedOptions.IsExpanded = true;
-        foreach (var options in ((StackPanel)AdvancedOptions.Content).Children.OfType<Expander>()) options.IsExpanded = true;
-        ViewModel.SelectedTrigger = Core.Models.TriggerMode.CustomCommand;
-        RootGrid.UpdateLayout();
-        await Task.Delay(150);
-        NormalArgumentsEditor.Text = "smoke-normal";
-        DailyArgumentsEditor.Text = "smoke-daily";
-        RetryEditor.Value = 2; TimeoutEditor.Value = 2.75;
-        await ViewModel.SaveCommand.ExecuteAsync(null);
-        Mark("Save custom values");
-        var persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
-        if (persisted.Games[0].Normal.Arguments != "smoke-normal" || persisted.Games[0].Daily.Arguments != "smoke-daily") throw new InvalidOperationException("界面配置双向绑定或持久化失败");
-        if (persisted.Games[0].Daily.RetryCount != 2 || persisted.Games[0].Daily.TimeoutMinutes != 2.75) throw new InvalidOperationException("数字配置绑定失败");
-        NormalArgumentsEditor.Text = ""; DailyArgumentsEditor.Text = "";
-        RetryEditor.Value = 0; TimeoutEditor.Value = 60;
-        ViewModel.SelectedTrigger = Core.Models.TriggerMode.VerifiedCommand;
-        ScheduleTimeEditor.Time = new TimeSpan(9, 35, 0);
-        Mark("Edit schedule time");
-        await ViewModel.SaveCommand.ExecuteAsync(null);
-        persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
-        if (persisted.Schedule.Time != "09:35" || persisted.Schedule.Enabled) throw new InvalidOperationException("时间选择器绑定或默认关闭状态错误");
-        AdvancedOptions.IsExpanded = false;
-        ViewModel.HasMessage = false;
-        ViewModel.SelectedPage = "home";
-        for (var line = 1; line <= 80; line++) ViewModel.LogLines.Add($"日志滚动检查 {line:000}：用于检查日志区域与滚动位置。");
-        RootGrid.UpdateLayout();
-        await Task.Delay(150);
-        var logScroll = (ScrollViewer)HomeLogOutput.FindName("OutputScroll");
-        if (HomeLogOutput.ActualHeight != 230 || logScroll.ScrollableHeight <= 0)
-            throw new InvalidOperationException("实时日志应在固定高度内滚动");
-        ViewModel.LogLines.Add("日志滚动检查：追加输出");
-        await Task.Delay(150);
-        if (logScroll.ScrollableHeight - logScroll.VerticalOffset > 2)
-            throw new InvalidOperationException("实时日志未跟随最新输出");
-        logScroll.ChangeView(null, 40, null, true);
-        await Task.Delay(150);
-        var readingOffset = logScroll.VerticalOffset;
-        ViewModel.LogLines.Add("日志滚动检查：查看历史时追加输出");
-        await Task.Delay(150);
-        if (Math.Abs(logScroll.VerticalOffset - readingOffset) > 2)
-            throw new InvalidOperationException("追加日志改变了历史阅读位置");
-        PageScroll.ChangeView(null, PageScroll.ScrollableHeight, null, true);
-        ViewModel.SelectedPage = "logs";
-        RootGrid.UpdateLayout();
-        await Task.Delay(150);
-        if (PageScroll.VerticalOffset > 2) throw new InvalidOperationException("切换页面后未回到顶部");
-        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source", "zzz-source" })
-        {
-            ViewModel.SelectedPage = page is "source" or "zzz-source" ? "config" : page;
-            if (page is "source" or "zzz-source")
-            {
-                var index = page == "source" ? 1 : 3;
-                ViewModel.SelectedGame = ViewModel.Games[index];
-                SourceModeEditor.SelectedItem = Core.Models.AssistantRunMode.Source;
-                SourceDirectoryEditor.Text = Path.Combine(outputRoot, page + " checkout");
-                await ViewModel.SaveCommand.ExecuteAsync(null);
-                persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
-                if (persisted.Games[index].ToolRunMode != Core.Models.AssistantRunMode.Source || persisted.Games[index].ToolSourceDirectory != SourceDirectoryEditor.Text
-                    || ViewModel.SourceVisibility != Visibility.Visible || ViewModel.BinaryVisibility != Visibility.Collapsed)
-                    throw new InvalidOperationException("源码模式与路径绑定或持久化失败");
-                ViewModel.HasMessage = false;
-            }
-            Mark("Render " + page);
-            RootGrid.UpdateLayout();
-            await Task.Delay(150);
-            var bitmap = new RenderTargetBitmap();
-            await bitmap.RenderAsync(RootGrid);
-            if (bitmap.PixelWidth == 0 || bitmap.PixelHeight == 0) throw new InvalidOperationException(page + " 页面未渲染");
-            using var memory = new InMemoryRandomAccessStream();
-            var encoder = await BitmapEncoder.CreateAsync(BitmapEncoder.PngEncoderId, memory);
-            encoder.SetPixelData(BitmapPixelFormat.Bgra8, BitmapAlphaMode.Premultiplied, (uint)bitmap.PixelWidth, (uint)bitmap.PixelHeight, 96, 96, (await bitmap.GetPixelsAsync()).ToArray());
-            await encoder.FlushAsync(); memory.Seek(0);
-            using var file = File.Create(Path.Combine(outputRoot, page + ".png"));
-            await memory.AsStreamForRead().CopyToAsync(file);
-        }
-        await File.WriteAllTextAsync(Path.Combine(outputRoot, "smoke.json"), System.Text.Json.JsonSerializer.Serialize(new { Success = true, Pages = 6, Games = ViewModel.Games.Count, UiConfigurationRoundTrip = true, SourceConfigurationRoundTrip = true, ProgressiveOptions = true, ScheduleTimeRoundTrip = true, StartupAvailable = ViewModel.StartupAvailable, Elevated = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator), NavigationOpen = Navigation.IsPaneOpen, NavigationMode = Navigation.DisplayMode.ToString(), BindingErrors = App.BindingErrors, Timestamp = DateTimeOffset.Now }));
     }
 }

@@ -1,0 +1,19 @@
+<Page x:Class="GameDailyHub.App.Views.TasksPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:GameDailyHub.App.ViewModels"
+    xmlns:views="using:GameDailyHub.App.Views" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <ScrollViewer x:Name="PageScroll" Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid>
+            <StackPanel Spacing="18">
+                <TextBlock Text="任务队列" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <TextBlock Text="已启用的任务按列表顺序依次运行，改动自动保存。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <ComboBox Header="游戏" ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" MinWidth="300"/>
+                <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="添加" Command="{x:Bind ViewModel.AddTaskCommand}"/><Button Content="上移" Command="{x:Bind ViewModel.MoveUpCommand}"/><Button Content="下移" Command="{x:Bind ViewModel.MoveDownCommand}"/><Button Content="删除" Command="{x:Bind ViewModel.RemoveTaskCommand}"/></StackPanel>
+                <ListView ItemsSource="{x:Bind ViewModel.Tasks}" SelectedItem="{x:Bind ViewModel.SelectedTask, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}">
+                    <ListView.ItemTemplate><DataTemplate x:DataType="vm:TaskRowViewModel"><Grid Padding="4,10" ColumnSpacing="18"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="300"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><CheckBox Content="启用" IsChecked="{Binding Config.Enabled, Mode=TwoWay}"/><TextBox Grid.Column="1" Text="{Binding Config.Name, Mode=TwoWay}"/><TextBlock Grid.Column="2" Text="{x:Bind GameName}" VerticalAlignment="Center"/></Grid></DataTemplate></ListView.ItemTemplate>
+                </ListView>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

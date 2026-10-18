@@ -1,0 +1,24 @@
+<Page x:Class="GameDailyHub.App.Views.SettingsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:GameDailyHub.App.ViewModels"
+    xmlns:views="using:GameDailyHub.App.Views" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <ScrollViewer x:Name="PageScroll" Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid>
+            <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Left">
+                <TextBlock Text="设置" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <ComboBox Header="外观" ItemsSource="{x:Bind ViewModel.Themes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{Binding Config.Theme, Mode=TwoWay}" SelectionChanged="Theme_Changed" Width="300"/>
+                <ToggleSwitch Header="登录时启动" IsOn="{x:Bind ViewModel.StartupEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.StartupAvailable, Mode=OneWay}" Toggled="Startup_Toggled" OnContent="开" OffContent="关"/>
+                <TextBlock Text="{x:Bind ViewModel.StartupHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <Expander Header="数据" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                    <StackPanel Spacing="16">
+                        <TextBox Header="数据目录" Text="{x:Bind ViewModel.DataDirectory}" IsReadOnly="True" Width="620"/>
+                        <TextBox Header="日志目录（留空使用默认，重启后生效）" Text="{Binding Config.LogDirectory, Mode=TwoWay}"/>
+                        <TextBlock Text="{x:Bind ViewModel.ActualLogDirectory, Mode=OneWay}" TextWrapping="Wrap"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入配置…" Click="Import_Click"/><Button Content="导出配置…" Click="Export_Click"/><Button Content="打开日志文件夹" Click="OpenLogs_Click"/></StackPanel>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

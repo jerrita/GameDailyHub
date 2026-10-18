@@ -1,0 +1,18 @@
+<Page x:Class="GameDailyHub.App.Views.LogsPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:GameDailyHub.App.ViewModels"
+    xmlns:views="using:GameDailyHub.App.Views" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <ScrollViewer x:Name="PageScroll" Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid>
+            <StackPanel Spacing="16">
+                <TextBlock Text="日志" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <StackPanel Orientation="Horizontal" Spacing="10"><ComboBox ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" Width="210"/><CheckBox Content="仅此游戏" IsChecked="{x:Bind ViewModel.FilterBySelectedGame, Mode=TwoWay}"/><Button Content="刷新" Command="{x:Bind ViewModel.RefreshHistoryCommand}"/></StackPanel>
+                <ListView ItemsSource="{x:Bind ViewModel.History}" SelectedItem="{x:Bind ViewModel.SelectedHistory, Mode=TwoWay}" Height="270"><ListView.ItemTemplate><DataTemplate x:DataType="vm:HistoryRowViewModel"><StackPanel Padding="4,8" Spacing="5"><TextBlock Text="{x:Bind Title}" FontWeight="SemiBold"/><TextBlock Text="{x:Bind Subtitle}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/></StackPanel></DataTemplate></ListView.ItemTemplate></ListView>
+                <TextBox Text="{x:Bind ViewModel.HistoryDetails, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" Height="210" FontFamily="Consolas" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                <TextBlock Text="实时日志" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                <views:LogOutputView Lines="{x:Bind ViewModel.LogLines}" Height="250"/>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

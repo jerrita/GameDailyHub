@@ -1,0 +1,18 @@
+<Page x:Class="GameDailyHub.App.Views.SchedulePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:vm="using:GameDailyHub.App.ViewModels"
+    xmlns:views="using:GameDailyHub.App.Views" HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch">
+    <ScrollViewer x:Name="PageScroll" Padding="0,0,12,0" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" HorizontalContentAlignment="Stretch">
+        <Grid>
+            <StackPanel Spacing="20" MaxWidth="720" HorizontalAlignment="Left">
+                <TextBlock Text="定时" Style="{ThemeResource TitleTextBlockStyle}"/>
+                <TextBlock Text="每天在设定时间运行任务队列中所有已启用的任务。应用需保持运行。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                <ToggleSwitch Header="每日自动运行" IsOn="{x:Bind ViewModel.ScheduleEnabled, Mode=TwoWay}" OnContent="开" OffContent="关"/>
+                <TimePicker x:Name="ScheduleTimeEditor" Header="时间" Time="{x:Bind ViewModel.ScheduleTime, Mode=TwoWay}" ClockIdentifier="24HourClock" IsEnabled="{x:Bind ViewModel.ScheduleEnabled, Mode=OneWay}" HorizontalAlignment="Left"/>
+                <Expander Header="时区" HorizontalAlignment="Stretch"><StackPanel Spacing="12"><TextBlock Text="{x:Bind ViewModel.ScheduleTimeZone, Mode=OneWay}"/><TextBox Header="时区 ID" Text="{Binding Config.Schedule.TimeZoneId, Mode=TwoWay}"/></StackPanel></Expander>
+                <TextBlock Text="任务正在运行，或应用未运行时，当天计划将跳过且不补跑。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</Page>

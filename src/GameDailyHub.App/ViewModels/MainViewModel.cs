@@ -41,9 +41,6 @@ public partial class MainViewModel : ObservableObject
     private string? _lastStorageError;
     private bool _savedStartupEnabled;
     private bool _refreshingOptions;
-    private readonly Stack<string> _backPages = new();
-    private readonly Stack<string> _forwardPages = new();
-    private bool _navigatingHistory;
     public AppConfig Config => _config;
     public ObservableCollection<GameCardViewModel> Games { get; } = [];
     public ObservableCollection<TaskRowViewModel> Tasks { get; } = [];
@@ -91,12 +88,6 @@ public partial class MainViewModel : ObservableObject
     public bool SourceBusy => _sourceCancellation is not null;
     public Visibility SourceBusyVisibility => SourceBusy ? Visibility.Visible : Visibility.Collapsed;
     public Visibility BusyVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HomeVisibility => VisibilityFor("home");
-    public Visibility TasksVisibility => VisibilityFor("tasks");
-    public Visibility ConfigVisibility => VisibilityFor("config");
-    public Visibility LogsVisibility => VisibilityFor("logs");
-    public Visibility ScheduleVisibility => VisibilityFor("schedule");
-    public Visibility SettingsVisibility => VisibilityFor("settings");
     public Visibility ConfirmationVisibility => AwaitingConfirmation ? Visibility.Visible : Visibility.Collapsed;
     public string DataDirectory => _store.Root;
     public string ActualLogDirectory => _journal?.LogDirectory ?? Path.Combine(_store.Root, "logs");
@@ -567,26 +558,9 @@ public partial class MainViewModel : ObservableObject
         Show(card.Name + $"：已导入 {result.FilesWritten} 个助手配置文件，原文件已备份（.gdh-*.bak）。请核对日常运行设置。");
     });
     public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
-    private Visibility VisibilityFor(string page) => SelectedPage == page ? Visibility.Visible : Visibility.Collapsed;
-    public void GoBack() => NavigateHistory(_backPages, _forwardPages);
-    public void GoForward() => NavigateHistory(_forwardPages, _backPages);
-    private void NavigateHistory(Stack<string> from, Stack<string> to)
-    {
-        if (!from.TryPop(out var page)) return;
-        to.Push(SelectedPage);
-        _navigatingHistory = true;
-        try { SelectedPage = page; }
-        finally { _navigatingHistory = false; }
-    }
     private void OnSelectedPageChanged(string? previous)
     {
-        if (!_navigatingHistory && previous is not null)
-        {
-            _backPages.Push(previous);
-            _forwardPages.Clear();
-        }
         if (previous is not null) _ = SaveIfChangedAsync();
-        foreach (var name in new[] { nameof(HomeVisibility), nameof(TasksVisibility), nameof(ConfigVisibility), nameof(LogsVisibility), nameof(ScheduleVisibility), nameof(SettingsVisibility) }) OnPropertyChanged(name);
     }
     private void OnSelectedGameChanged(GameCardViewModel? value) => RefreshConfigurationOptions();
     private void OnSelectedHistoryChanged(HistoryRowViewModel? value) => OnPropertyChanged(nameof(HistoryDetails));
