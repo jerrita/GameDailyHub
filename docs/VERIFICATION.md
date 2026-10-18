@@ -163,5 +163,5 @@
 - 发布目录由 173.24 MiB 缩小至 40.47 MiB；运行环境要求见 README。
 - 应用 Release 构建、C# 静态分析、fmt、PowerShell 语法与差异检查通过。初次 NuGet 审核网络警告及受限环境下的 fmt 管道访问错误已在重试后消除。
 - 本机已安装 .NET 10.0.13 和 Windows App Runtime 2.5.1 x64。普通权限测试版使用独立发布与数据目录，六页面及配置保存检查通过，绑定错误 0；未启动管理员交付版。
-- 完整解决方案构建仍被工作区原有的未跟踪文件 `tests/GameDailyHub.Tests/JsonSerializationSetup.cs` 阻断：引用的 `HubJsonContext`、`WindowsJsonContext` 和 `JsonDefaults.Use` 不存在；该文件未修改，未执行完整测试。
+- 完整解决方案 Release 重建、静态分析及 fmt 检查通过；构建日志：`artifacts/build-cleanup.log`。
 - 日志：`artifacts/lint-build-shared-runtime.log`、`artifacts/publish-shared-runtime.log`、`artifacts/fmt-shared-runtime.log`；界面报告：`artifacts/smoke-shared-runtime/smoke.json`。此前实机待验项目继续保留。
