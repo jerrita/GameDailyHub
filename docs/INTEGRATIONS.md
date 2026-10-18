@@ -48,7 +48,7 @@
 - [Python 版本与依赖](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/pyproject.toml)：要求 Python `>=3.11.9,<3.12`。Hub 使用 `uv sync --python 3.11 --no-dev` 和源码目录内 `.venv`，启动时设置 `PYTHONPATH=src`。
 - [应用组执行](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/base/operation/application/group_application.py) 会继续处理失败的子任务；[操作日志](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/base/operation/operation.py) 包含子任务与顶层完成文本。Hub 仅将本轮进程输出中的顶层「一条龙 执行成功 返回状态 全部结束」视为流程结束，等待正常退出后要求人工确认；失败证据优先。
 
-默认参数不附带关闭游戏、关机、休眠或睡眠操作。停止、超时和跳过沿用现有 Job Object 清理。助手配置导入导出仅迁移 Hub 日常设置，第三方配置在助手内管理。真实游戏与安装版提权运行尚需本机联调。
+默认参数不附带关闭游戏、关机、休眠或睡眠操作。停止、超时和跳过沿用现有 Job Object 清理。助手配置导入导出迁移 Hub 日常设置及 `config` 下的用户 YAML 配置，包含账号实例、应用组和自定义战斗配置；具体文件与恢复规则见 [SETTINGS.md](SETTINGS.md#助手配置导入导出)。支持与其它助手统一导出、导入。真实游戏与安装版提权运行尚需本机联调。
 
 ## 共同策略
 

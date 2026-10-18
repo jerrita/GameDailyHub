@@ -10,12 +10,15 @@
                 <ComboBox Header="外观" ItemsSource="{x:Bind ViewModel.Themes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{Binding Config.Theme, Mode=TwoWay}" SelectionChanged="Theme_Changed" Width="300"/>
                 <ToggleSwitch Header="登录时启动" IsOn="{x:Bind ViewModel.StartupEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.StartupAvailable, Mode=OneWay}" Toggled="Startup_Toggled" OnContent="开" OffContent="关"/>
                 <TextBlock Text="{x:Bind ViewModel.StartupHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <Expander Header="数据" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                <Expander x:Name="DataOptions" Header="数据" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                     <StackPanel Spacing="16">
                         <TextBox Header="数据目录" Text="{x:Bind ViewModel.DataDirectory}" IsReadOnly="True" Width="620"/>
                         <TextBox Header="日志目录（留空使用默认，重启后生效）" Text="{Binding Config.LogDirectory, Mode=TwoWay}"/>
                         <TextBlock Text="{x:Bind ViewModel.ActualLogDirectory, Mode=OneWay}" TextWrapping="Wrap"/>
                         <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入配置…" Click="Import_Click"/><Button Content="导出配置…" Click="Export_Click"/><Button Content="打开日志文件夹" Click="OpenLogs_Click"/></StackPanel>
+                        <TextBlock Text="全部助手配置" FontWeight="SemiBold"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入全部助手…" Click="ImportAssistants_Click"/><Button Content="导出全部助手…" Click="ExportAssistants_Click"/></StackPanel>
+                        <TextBlock Text="将已有助手配置与日常运行设置保存到一个 JSON 文件，导出后列出跳过的助手。导入前请安装对应助手并关闭其程序；原文件自动备份，本机路径保留。文件可能含账号、密码和通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </Expander>
             </StackPanel>

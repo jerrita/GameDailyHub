@@ -51,7 +51,7 @@
                             <StackPanel Spacing="8">
                                 <TextBlock Text="助手配置" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                                 <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入…" Click="ImportAssistant_Click"/><Button Content="导出…" Click="ExportAssistant_Click"/></StackPanel>
-                                <TextBlock Text="导出助手自身的配置与日常运行设置，便于在其他电脑或重装后恢复。导入时保留本机路径并自动备份原文件，需先关闭助手。导出文件可能含通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="导出助手自身的配置与日常运行设置，便于在其他电脑或重装后恢复。导入时保留本机路径并自动备份原文件，需先关闭助手。导出文件可能含账号、密码和通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </StackPanel>
                             <Expander Header="启动选项" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="14">

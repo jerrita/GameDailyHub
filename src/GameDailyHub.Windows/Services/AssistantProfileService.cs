@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using GameDailyHub.Core.Models;
+using YamlDotNet.RepresentationModel;
 
 namespace GameDailyHub.Windows.Services;
 
@@ -56,7 +57,7 @@ public static partial class AssistantProfileService
 
     private static readonly JsonSerializerOptions FileJson = new() { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping };
 
-    public static bool SupportsFiles(string adapterId) => adapterId is "bettergi" or "march7th" or "okww";
+    public static bool SupportsFiles(string adapterId) => GameCatalog.Supports(adapterId);
 
     /// <summary>Install directory (binary) or source directory (source mode) that holds the assistant's files.</summary>
     public static string? RootFor(GameConfig game, SourceAssistantService sources)
@@ -74,6 +75,12 @@ public static partial class AssistantProfileService
             "march7th" => normalized == "config.yaml",
             "bettergi" => normalized == "User/config.json" || OneLevel(normalized, "User/OneDragon/", ".json"),
             "okww" => OneLevel(normalized, "configs/", ".json"),
+            "zzz" => normalized.StartsWith("config/", StringComparison.Ordinal)
+                && (normalized.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) || normalized.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
+                && !normalized.EndsWith(".sample.yml", StringComparison.OrdinalIgnoreCase)
+                && !normalized.EndsWith(".merged.yml", StringComparison.OrdinalIgnoreCase)
+                && normalized is not ("config/project.yml" or "config/repository.yml")
+                && !normalized.Split('/').Contains("run_record", StringComparer.OrdinalIgnoreCase),
             _ => false
         };
     }
@@ -90,12 +97,18 @@ public static partial class AssistantProfileService
             "march7th" => ["config.yaml"],
             "bettergi" => new[] { "User/config.json" }.Concat(In("User/OneDragon", "*.json")),
             "okww" => In("configs", "*.json"),
+            "zzz" => Directory.Exists(Path.Combine(root, "config"))
+                ? Directory.EnumerateFiles(Path.Combine(root, "config"), "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
+                    .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/')).Where(f => IsAllowed(adapterId, f)) : [],
             _ => []
         };
-        return found.Where(f => File.Exists(Path.Combine(root, f)) && new FileInfo(Path.Combine(root, f)).Length <= MaxFileBytes);
+        return found.Where(f => File.Exists(Path.Combine(root, f))).Order(StringComparer.Ordinal);
     }
 
     public static string Export(GameConfig game, string? root)
+        => JsonSerializer.Serialize(CreateProfile(game, root), JsonDefaults.Options);
+
+    internal static AssistantProfile CreateProfile(GameConfig game, string? root, bool allowEmpty = false)
     {
         var daily = game.Daily;
         var profile = new AssistantProfile
@@ -115,12 +128,20 @@ public static partial class AssistantProfileService
         };
         if (SupportsFiles(game.AdapterId))
         {
-            if (root is null || !Directory.Exists(root)) throw new InvalidOperationException("未找到助手目录，请先设置助手路径（源码模式请先安装源码）");
+            if (root is null || !Directory.Exists(root))
+            {
+                if (allowEmpty) return profile;
+                throw new InvalidOperationException("未找到助手目录，请先设置助手路径（源码模式请先安装源码）");
+            }
             foreach (var relative in Discover(game.AdapterId, root))
+            {
+                if (new FileInfo(Path.Combine(root, relative)).Length > MaxFileBytes) throw new InvalidDataException("配置文件过大：" + relative);
                 profile.Files.Add(new() { Path = relative, Content = File.ReadAllText(Path.Combine(root, relative)) });
-            if (profile.Files.Count == 0) throw new InvalidOperationException("助手目录中没有找到可导出的配置文件，请先运行并设置一次助手：" + root);
+            }
+            if (!allowEmpty && profile.Files.Count == 0) throw new InvalidOperationException("助手目录中没有找到可导出的配置文件，请先运行并设置一次助手：" + root);
         }
-        return JsonSerializer.Serialize(profile, JsonDefaults.Options);
+        Validate(profile);
+        return profile;
     }
 
     public static AssistantProfile Read(string json)
@@ -128,6 +149,12 @@ public static partial class AssistantProfileService
         AssistantProfile profile;
         try { profile = JsonSerializer.Deserialize<AssistantProfile>(json, JsonDefaults.Options) ?? throw new InvalidDataException("助手配置为空"); }
         catch (JsonException e) { throw new InvalidDataException("不是有效的助手配置文件：" + e.Message, e); }
+        Validate(profile);
+        return profile;
+    }
+
+    internal static void Validate(AssistantProfile profile)
+    {
         if (profile.Kind != AssistantProfile.FileKind) throw new InvalidDataException("不是 GameDailyHub 助手配置文件（整体配置请在“设置 → 数据与备份”导入）");
         if (profile.SchemaVersion != 1) throw new InvalidDataException("不支持助手配置版本 " + profile.SchemaVersion);
         if (!GameCatalog.Supports(profile.AdapterId)) throw new InvalidDataException("不支持的助手类型");
@@ -142,7 +169,6 @@ public static partial class AssistantProfileService
             if (Encoding.UTF8.GetByteCount(file.Content) > MaxFileBytes) throw new InvalidDataException("配置文件过大：" + file.Path);
         }
         if (profile.Files.Select(f => f.Path.Replace('\\', '/').ToLowerInvariant()).Distinct().Count() != profile.Files.Count) throw new InvalidDataException("助手配置包含重复文件");
-        return profile;
     }
 
     /// <summary>
@@ -152,6 +178,15 @@ public static partial class AssistantProfileService
     public static AssistantImportResult Import(string json, GameConfig game, string? root)
     {
         var profile = Read(json);
+        var pending = Prepare(profile, game, root);
+        var result = WriteFiles(pending);
+        Apply(profile, game);
+        return result;
+    }
+
+    internal static List<(string Full, string Content)> Prepare(AssistantProfile profile, GameConfig game, string? root)
+    {
+        Validate(profile);
         if (profile.AdapterId != game.AdapterId) throw new InvalidDataException($"助手类型不匹配：文件为 {profile.AdapterId}，当前游戏使用 {game.AdapterId}");
         var pending = new List<(string Full, string Content)>();
         if (profile.Files.Count > 0)
@@ -164,24 +199,100 @@ public static partial class AssistantProfileService
                 if (!full.StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("配置文件路径越界：" + file.Path);
                 var existing = File.Exists(full) ? File.ReadAllText(full) : null;
-                pending.Add((full, file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? MergeJson(file.Content, existing, file.Path) : MergeYaml(file.Content, existing)));
+                pending.Add((full, file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? MergeJson(file.Content, existing, file.Path)
+                    : game.AdapterId == "zzz" ? MergeZzzYaml(file.Content, existing) : MergeYaml(file.Content, existing)));
             }
         }
-        var backups = 0;
-        var stamp = DateTime.Now.ToString("yyyyMMddHHmmssfff");
-        foreach (var (full, content) in pending)
+        return pending;
+    }
+
+    internal static AssistantImportResult WriteFiles(List<(string Full, string Content)> pending)
+    {
+        if (pending.Select(f => f.Full).Distinct(StringComparer.OrdinalIgnoreCase).Count() != pending.Count)
+            throw new InvalidDataException("多个配置指向同一目标文件");
+        var stamp = DateTime.Now.ToString("yyyyMMddHHmmssfff") + "-" + Guid.NewGuid().ToString("N");
+        var staged = new List<(string Full, string Temp, string? Backup)>();
+        var written = new List<(string Full, string? Backup)>();
+        try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
-            if (File.Exists(full)) { File.Copy(full, full + ".gdh-" + stamp + ".bak", false); backups++; }
-            var temp = full + ".gdh-tmp";
-            File.WriteAllText(temp, content, new UTF8Encoding(false));
-            File.Move(temp, full, true);
+            foreach (var (full, content) in pending)
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+                var backup = File.Exists(full) ? full + ".gdh-" + stamp + ".bak" : null;
+                var temp = full + ".gdh-" + stamp + ".tmp";
+                staged.Add((full, temp, backup));
+                File.WriteAllText(temp, content, new UTF8Encoding(false));
+                if (backup is not null) File.Copy(full, backup, false);
+            }
+            foreach (var file in staged)
+            {
+                File.Move(file.Temp, file.Full, true);
+                written.Add((file.Full, file.Backup));
+            }
         }
+        catch (Exception error)
+        {
+            var errors = new List<Exception> { error };
+            foreach (var file in written.AsEnumerable().Reverse())
+                try { if (file.Backup is null) File.Delete(file.Full); else File.Copy(file.Backup, file.Full, true); }
+                catch (Exception rollbackError) { errors.Add(rollbackError); }
+            if (errors.Count > 1) throw new AggregateException("导入失败，部分文件恢复失败，请使用 .gdh-*.bak 备份恢复", errors);
+            throw;
+        }
+        finally
+        {
+            foreach (var file in staged) if (File.Exists(file.Temp)) File.Delete(file.Temp);
+        }
+        return new(pending.Count, staged.Count(f => f.Backup is not null));
+    }
+
+    internal static void Apply(AssistantProfile profile, GameConfig game)
+    {
         var daily = game.Daily;
         daily.Trigger = profile.Trigger; daily.Arguments = profile.Arguments; daily.ProfileName = profile.ProfileName; daily.Completion = profile.Completion;
         daily.StartPattern = profile.StartPattern; daily.SuccessPattern = profile.SuccessPattern; daily.FailurePattern = profile.FailurePattern;
         daily.TimeoutMinutes = profile.TimeoutMinutes; daily.RetryCount = profile.RetryCount; daily.ContinueOnFailure = profile.ContinueOnFailure;
-        return new(pending.Count, backups);
+    }
+
+    private static string MergeZzzYaml(string incoming, string? existing)
+    {
+        static YamlNode Parse(string text)
+        {
+            var yaml = new YamlStream();
+            try { yaml.Load(new StringReader(text)); }
+            catch (YamlDotNet.Core.YamlException e) { throw new InvalidDataException("绝区零配置 YAML 格式无效", e); }
+            if (yaml.Documents.Count != 1 || yaml.Documents[0].RootNode is not (YamlMappingNode or YamlSequenceNode))
+                throw new InvalidDataException("绝区零配置须包含一个 YAML 对象或列表");
+            return yaml.Documents[0].RootNode;
+        }
+        static YamlNode? Localize(YamlNode node, YamlNode? local)
+        {
+            if (node is YamlScalarNode scalar && AbsolutePath().IsMatch(scalar.Value ?? "")) return local is YamlScalarNode ? local : null;
+            if (node is YamlMappingNode map)
+            {
+                foreach (var key in map.Children.Keys.ToArray())
+                {
+                    YamlNode? current = null;
+                    if (local is YamlMappingNode localMap) localMap.Children.TryGetValue(key, out current);
+                    var value = Localize(map.Children[key], current);
+                    if (value is null) map.Children.Remove(key); else map.Children[key] = value;
+                }
+            }
+            if (node is YamlSequenceNode sequence)
+            {
+                var current = local as YamlSequenceNode;
+                for (var i = sequence.Children.Count - 1; i >= 0; i--)
+                {
+                    var value = Localize(sequence.Children[i], current is not null && i < current.Children.Count ? current.Children[i] : null);
+                    if (value is null) sequence.Children.RemoveAt(i); else sequence.Children[i] = value;
+                }
+            }
+            return node;
+        }
+        var root = Localize(Parse(incoming), existing is null ? null : Parse(existing))!;
+        var output = new StringWriter();
+        new YamlStream(new YamlDocument(root)).Save(output, false);
+        return output.ToString();
     }
 
     private static bool IsPath(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) && AbsolutePath().IsMatch(text);

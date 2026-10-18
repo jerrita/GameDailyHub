@@ -27,12 +27,13 @@ public sealed class AssistantProfileTests : IDisposable
     public void ExportCarriesDailySettingsAndImportAppliesThem()
     {
         var source = Game("zzz");
+        var root = Make("zzz"); Write(root, "config/one_dragon.yml", "instance_list: []\n");
         source.Daily = new() { Trigger = TriggerMode.CustomCommand, Arguments = "--task daily", ProfileName = "flow", Completion = CompletionMode.LogRules, StartPattern = "a", SuccessPattern = "b", FailurePattern = "c", TimeoutMinutes = 30, RetryCount = 2, ContinueOnFailure = false, LogPath = @"C:\source-machine\log.txt", WorkingDirectory = @"C:\source-machine" };
-        var json = AssistantProfileService.Export(source, null);
+        var json = AssistantProfileService.Export(source, root);
         Assert.DoesNotContain("source-machine", json);
 
         var target = Game("zzz"); target.Daily.LogPath = @"D:\other\log.txt";
-        AssistantProfileService.Import(json, target, null);
+        AssistantProfileService.Import(json, target, Make("target"));
         Assert.Equal(("--task daily", "flow", CompletionMode.LogRules), (target.Daily.Arguments, target.Daily.ProfileName, target.Daily.Completion));
         Assert.Equal((30d, 2, false), (target.Daily.TimeoutMinutes, target.Daily.RetryCount, target.Daily.ContinueOnFailure));
         Assert.Equal(@"D:\other\log.txt", target.Daily.LogPath);
@@ -136,14 +137,22 @@ public sealed class AssistantProfileTests : IDisposable
     [InlineData("configs/a.json", "okww", true)]
     [InlineData("C:/Windows/x.json", "okww", false)]
     [InlineData("configs/a.json", "zzz", false)]
+    [InlineData("config/one_dragon.yml", "zzz", true)]
+    [InlineData("config/01/game_account.yml", "zzz", true)]
+    [InlineData("config/01/app_groups/daily.yml", "zzz", true)]
+    [InlineData("config/auto_battle/custom.yml", "zzz", true)]
+    [InlineData("config/auto_battle/default.sample.yml", "zzz", false)]
+    [InlineData("config/auto_battle/default.merged.yml", "zzz", false)]
+    [InlineData("config/project.yml", "zzz", false)]
+    [InlineData("config/01/run_record/daily.yml", "zzz", false)]
+    [InlineData("config/../outside.yml", "zzz", false)]
     public void OnlyKnownRelativeFilesAreAccepted(string path, string adapter, bool allowed) => Assert.Equal(allowed, AssistantProfileService.IsAllowed(adapter, path));
 
     [Fact]
     public void ImportRejectsTraversalInFile()
     {
         var to = Make("to");
-        var json = AssistantProfileService.Export(Game("zzz"), null);
-        var profile = AssistantProfileService.Read(json); profile.AdapterId = "okww";
+        var profile = new AssistantProfile { AdapterId = "okww" };
         profile.Files.Add(new() { Path = "configs/../../evil.json", Content = "{}" });
         Assert.Throws<InvalidDataException>(() => AssistantProfileService.Import(System.Text.Json.JsonSerializer.Serialize(profile, JsonDefaults.Options), Game("okww"), to));
     }

@@ -157,6 +157,7 @@ public sealed partial class MainWindow
                 ViewModel.HasMessage = false;
             }
             Mark("Render " + page);
+            if (page == "settings") ((Expander)((SettingsPage)ContentFrame.Content).FindName("DataOptions")).IsExpanded = true;
             VerifyNavigation(page is "source" or "zzz-source" ? "config" : page);
             RootGrid.UpdateLayout();
             await Task.Delay(350);
@@ -182,6 +183,29 @@ public sealed partial class MainWindow
         }
         if (transitionTypes.Count == 0 || transitionTypes.Any(type => type is "None" or nameof(SuppressNavigationTransitionInfo)))
             throw new InvalidOperationException("页面切换未使用原生导航过渡");
+        Mark("Assistant bundle round trip");
+        string[] assistantFiles = ["User/config.json", "config.yaml", "configs/daily.json", "config/01/game.yml"];
+        for (var i = 0; i < ViewModel.Games.Count; i++)
+        {
+            var game = ViewModel.Games[i].Config;
+            var root = Path.Combine(outputRoot, "assistant-fixtures", game.AdapterId);
+            var full = Path.Combine(root, assistantFiles[i]);
+            Directory.CreateDirectory(Path.GetDirectoryName(full)!);
+            await File.WriteAllTextAsync(full, assistantFiles[i].EndsWith("json") ? "{\"enabled\":true}" : "enabled: true\n");
+            game.ToolRunMode = Core.Models.AssistantRunMode.Binary;
+            game.ToolPath = Path.Combine(root, "fixture.exe");
+            game.ToolGuiPath = "";
+            game.Daily.TimeoutMinutes = 20 + i;
+        }
+        var bundlePath = Path.Combine(outputRoot, "assistants.json");
+        await ViewModel.ExportAssistantsAsync(bundlePath);
+        if (!File.Exists(bundlePath) || AssistantBundleService.Read(await File.ReadAllTextAsync(bundlePath)).Assistants.Count != 4)
+            throw new InvalidOperationException("全部助手导出失败：" + ViewModel.Message);
+        foreach (var card in ViewModel.Games) card.Config.Daily.TimeoutMinutes = 60;
+        await ViewModel.ImportAssistantsAsync(bundlePath);
+        persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
+        if (!ViewModel.IsIdle || persisted.Games.Where((game, i) => game.Daily.TimeoutMinutes != 20 + i).Any())
+            throw new InvalidOperationException("全部助手导入或持久化失败：" + ViewModel.Message);
         await File.WriteAllTextAsync(Path.Combine(outputRoot, "smoke.json"), System.Text.Json.JsonSerializer.Serialize(new { Success = true, Pages = 6, Games = ViewModel.Games.Count, NativeFrameNavigation = true, NavigationTransitions = transitionTypes.Distinct().ToArray(), CachedPageState = true, UiConfigurationRoundTrip = true, SourceConfigurationRoundTrip = true, ProgressiveOptions = true, ScheduleTimeRoundTrip = true, StartupAvailable = ViewModel.StartupAvailable, Elevated = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator), NavigationOpen = Navigation.IsPaneOpen, NavigationMode = Navigation.DisplayMode.ToString(), BindingErrors = App.BindingErrors, Timestamp = DateTimeOffset.Now }));
     }
 }

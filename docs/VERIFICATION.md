@@ -137,3 +137,13 @@
 - 报告：`artifacts/build-fixed-catalog.log`、`artifacts/TestResults/tests.trx`、`artifacts/smoke-fixed-catalog/smoke.json`；截图位于同一冒烟目录。
 
 本轮没有剩余失败项；真实助手与游戏、登录任务及纯净机器的待验项目沿用前述记录。
+
+## 2026-10-18 全部助手配置导入导出
+
+- 绝区零配置导入导出包含 `config` 下的用户 YAML，覆盖多账号实例、应用组与自定义战斗配置；排除示例、合并缓存、项目与仓库配置、运行记录。
+- 设置页新增全部助手配置导入导出，使用单个 JSON；未安装或无配置的助手跳过并列出。导入按类型匹配，保留本机路径；全部校验、暂存和备份后写入，写入失败时回滚已替换文件。
+- fmt、C# 静态分析及差异检查通过；Release 编译、发布完成。134 项测试通过，失败 0、跳过 0，覆盖四助手恢复、缺失助手、无效配置、路径保留与文件占用回滚。首次回滚测试对 Windows 异常类型的断言已修正并复跑通过。
+- 普通权限界面冒烟检查通过，绑定错误 0，完成四助手统一导出、导入及持久化检查；已目视检查设置页全部助手入口。测试数据位于 `artifacts/smoke-assistant-bundle`，未读取真实助手账号配置或触发 UAC。
+- 交付目录：`artifacts/publish/win-x64`；测试结果：`artifacts/TestResults/tests.trx`；界面报告及截图：`artifacts/smoke-assistant-bundle/smoke.json`、`settings.png`。
+
+本轮失败项均已处理。真实助手配置恢复后的实际运行、管理员交付版启动、登录任务和纯净 Windows 部署仍待本机验证。
