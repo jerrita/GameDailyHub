@@ -29,8 +29,8 @@ public sealed partial class MainWindow
             var selected = Navigation.SelectedItem is not null && ReferenceEquals(Navigation.SelectedItem, Navigation.SettingsItem) ? "settings" : (Navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString();
             if (ViewModel.SelectedPage != page || selected != page) throw new InvalidOperationException($"导航历史或选中项错误：预期 {page}，页面 {ViewModel.SelectedPage}，选中项 {selected ?? "空"}");
             if (ContentFrame.CurrentSourcePageType != Pages[page] || ContentFrame.Content is not Page content || !ReferenceEquals(content.DataContext, ViewModel)
-                || Navigation.IsBackEnabled != ContentFrame.CanGoBack || !ContentFrame.ContentTransitions.OfType<NavigationThemeTransition>().Any())
-                throw new InvalidOperationException("原生页面、转场或后退按钮状态错误：" + page);
+                || !ContentFrame.ContentTransitions.OfType<NavigationThemeTransition>().Any())
+                throw new InvalidOperationException("原生页面或转场状态错误：" + page);
         }
         TryGoBack(); TryGoForward(); VerifyNavigation("home");
         Navigation.SelectedItem = Navigation.MenuItems.OfType<NavigationViewItem>().First(item => item.Tag?.ToString() == "tasks");

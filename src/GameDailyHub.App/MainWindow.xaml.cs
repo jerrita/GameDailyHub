@@ -105,7 +105,6 @@ public sealed partial class MainWindow : Window
             ViewModel.SelectedPage = page;
             Navigation.SelectedItem = page == "settings" ? Navigation.SettingsItem
                 : Navigation.MenuItems.OfType<NavigationViewItem>().First(item => item.Tag?.ToString() == page);
-            Navigation.IsBackEnabled = ContentFrame.CanGoBack;
         }
         finally { _syncingNavigation = false; }
     }
@@ -135,7 +134,6 @@ public sealed partial class MainWindow : Window
         return true;
     }
 
-    private void Navigation_BackRequested(NavigationView sender, NavigationViewBackRequestedEventArgs args) => TryGoBack();
     private void GoBack_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) => args.Handled = TryGoBack();
     private void GoForward_Invoked(KeyboardAccelerator sender, KeyboardAcceleratorInvokedEventArgs args) => args.Handled = TryGoForward();
 

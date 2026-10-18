@@ -7,7 +7,7 @@
             <KeyboardAccelerator Key="Left" Modifiers="Menu" Invoked="GoBack_Invoked"/>
             <KeyboardAccelerator Key="Right" Modifiers="Menu" Invoked="GoForward_Invoked"/>
         </Grid.KeyboardAccelerators>
-        <NavigationView x:Name="Navigation" IsBackButtonVisible="Visible" IsBackEnabled="False" BackRequested="Navigation_BackRequested" PaneDisplayMode="Auto" ExpandedModeThresholdWidth="1100" CompactModeThresholdWidth="760" OpenPaneLength="220" SelectionChanged="Navigation_SelectionChanged">
+        <NavigationView x:Name="Navigation" IsBackButtonVisible="Collapsed" PaneDisplayMode="Auto" ExpandedModeThresholdWidth="1100" CompactModeThresholdWidth="760" OpenPaneLength="220" SelectionChanged="Navigation_SelectionChanged">
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="总览" Tag="home" Icon="Home"/>
                 <NavigationViewItem Content="任务队列" Tag="tasks" Icon="List"/>
