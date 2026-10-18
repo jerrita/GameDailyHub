@@ -15,7 +15,6 @@ public sealed class AdapterIntegrationTests
     [InlineData("okww", "ok-ww.exe")]
     [InlineData("zzz", "OneDragon-RuntimeLauncher.exe")]
     [InlineData("zzz", "OneDragon-Launcher.exe")]
-    [InlineData("generic", "Helper.exe")]
     public async Task OpeningAssistantDoesNotRequireDailyConfiguration(string adapterId, string executable)
     {
         var directory = Path.Combine(Path.GetTempPath(), "GameDailyHub-tests-" + Guid.NewGuid());
@@ -39,8 +38,8 @@ public sealed class AdapterIntegrationTests
     public async Task ManualModeNeedsNoAutomaticEvidenceSetup()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "GameDailyHub.Tests.exe");
-        var game = new GameConfig { ToolPath = path, Daily = new() { Trigger = TriggerMode.Manual } };
-        var adapter = new GenericAdapter(new());
+        var game = new GameConfig { AdapterId = "bettergi", ToolPath = path, Daily = new() { Trigger = TriggerMode.Manual } };
+        var adapter = new BetterGiAdapter(new());
         foreach (var completion in new[] { CompletionMode.AdapterEvidence, CompletionMode.LogRules })
         {
             game.Daily.Completion = completion;
@@ -49,12 +48,13 @@ public sealed class AdapterIntegrationTests
         }
     }
     [Fact]
-    public async Task RealGenericAdapterLaunchesFixtureAndWaitsForOutputEvidence()
+    public async Task AdapterLaunchesFixtureAndWaitsForOutputEvidence()
     {
         var path = Path.Combine(AppContext.BaseDirectory, "GameDailyHub.Tests.exe");
         var game = new GameConfig
         {
             Name = "测试专用进程",
+            AdapterId = "bettergi",
             ToolPath = path,
             Daily = new()
             {

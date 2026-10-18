@@ -14,7 +14,7 @@
 日期：2026-10-17。
 
 - 未指定助手路径时，读取、导入、保存配置及运行校验会查找默认位置；手动路径优先。未找到时提示选择已安装的助手。
-- Release x64 构建与自包含发布通过；通过已有本地顺序反射执行器运行 51 项 xUnit 测试，失败 0。新增覆盖三款助手的默认位置识别、March7th Launcher 补全、手动路径优先、多个位置的顺序、未安装和通用助手。
+- Release x64 构建与自包含发布通过；通过已有本地顺序反射执行器运行 51 项 xUnit 测试，失败 0。覆盖三款助手的默认位置识别、March7th Launcher 补全、手动路径优先、多个位置的顺序及未安装情况。
 - 本机默认目录已发现 `C:\Program Files\BetterGI\BetterGI.exe`。未执行真实助手或游戏任务。
 - 测试报告：`artifacts/TestResults/offline-tests.json`。
 - 发布程序六页面原生冒烟检查通过，绑定错误 0；默认 BetterGI 路径已显示并持久化。报告与截图：`artifacts/smoke-default-assistants`。
@@ -61,7 +61,7 @@
 - NuGet 官方源还原，四个项目均生成依赖锁文件。
 - Debug x64 解决方案构建。
 - 43 项 xUnit 测试通过：编排、普通启动隔离、真实进程/子进程、Job Object、取消/超时/重试/跳过、人工确认、异常恢复、配置/备份、日志解析和每日计划。
-- 通用真实适配器启动测试专用 EXE，捕获输出、验证开始/完成信号和退出后清理。
+- 进程适配器启动测试专用 EXE，捕获输出、验证开始/完成信号和退出后清理。
 - 实际 WinUI 窗口的六页面渲染检查，绑定错误 0；高 DPI 截图检查后调整初始窗口尺寸和卡片布局。
 
 ### 最终发布验证
@@ -126,3 +126,14 @@
 报告：`artifacts/build-admin-review.log`、`artifacts/TestResults/tests.trx`、`artifacts/smoke-admin-review/smoke.json`、`artifacts/permission-verification.json`。
 
 未实测项目：交付版实际提权启动、管理员状态下真实助手与游戏联调、登录任务实际注册/删除及旧启动项迁移。既有 Windows 10 / 纯净机器验证继续保留。
+
+## 2026-10-18 固定游戏目录与旧配置同步
+
+- 游戏目录固定为原神、崩坏：星穹铁道、鸣潮和绝区零，名称与助手对应关系由内置目录确定。
+- 读取、导入和保存配置时补齐缺少的游戏及其日常项，保留已有游戏 ID、路径、源码运行方式、日常参数、任务顺序与启用状态；重复条目沿用首条配置并统一任务引用。
+- fmt、静态分析及差异检查通过。Release 构建与发布完成，0 警告、0 错误；118 项测试通过，失败 0、跳过 0。
+- 使用隔离的旧配置运行普通权限界面测试：自动显示四款游戏，已目视确认绝区零卡片与游戏配置页；六个页面和配置保存检查通过，绑定错误 0、`Elevated=false`。
+- 测试未触发 UAC；交付版保持 `requireAdministrator`，已更新 `artifacts/publish/win-x64/GameDailyHub.App.exe`。
+- 报告：`artifacts/build-fixed-catalog.log`、`artifacts/TestResults/tests.trx`、`artifacts/smoke-fixed-catalog/smoke.json`；截图位于同一冒烟目录。
+
+本轮没有剩余失败项；真实助手与游戏、登录任务及纯净机器的待验项目沿用前述记录。

@@ -38,11 +38,11 @@ public sealed class DailyTaskProfile
 public sealed class GameConfig
 {
     public Guid Id { get; set; } = Guid.NewGuid();
-    public string Name { get; set; } = "新游戏";
-    public string AdapterId { get; set; } = "generic";
+    public string Name { get; set; } = "";
+    public string AdapterId { get; set; } = "";
     public string GamePath { get; set; } = "";
     public string LauncherPath { get; set; } = "";
-    public string ToolName { get; set; } = "自定义助手";
+    public string ToolName { get; set; } = "";
     public string ToolPath { get; set; } = "";
     public string ToolGuiPath { get; set; } = "";
     public string ToolConfigPath { get; set; } = "";
@@ -67,6 +67,22 @@ public sealed class QueueTaskConfig
     public bool Enabled { get; set; } = true;
 }
 
+public sealed record SupportedGame(string AdapterId, string Name, string ToolName)
+{
+    public GameConfig Create() => new() { AdapterId = AdapterId, Name = Name, ToolName = ToolName };
+}
+
+public static class GameCatalog
+{
+    public static IReadOnlyList<SupportedGame> Games { get; } = Array.AsReadOnly<SupportedGame>([
+        new("bettergi", "原神", "BetterGI"),
+        new("march7th", "崩坏：星穹铁道", "March7thAssistant"),
+        new("okww", "鸣潮", "OK-WW"),
+        new("zzz", "绝区零", "绝区零一条龙")
+    ]);
+    public static bool Supports(string adapterId) => Games.Any(game => game.AdapterId == adapterId);
+}
+
 public sealed class ScheduleConfig
 {
     public bool Enabled { get; set; }
@@ -87,12 +103,7 @@ public sealed class AppConfig
     public static AppConfig CreateDefault()
     {
         var config = new AppConfig();
-        config.Games = [
-            new() { Name = "原神", AdapterId = "bettergi", ToolName = "BetterGI" },
-            new() { Name = "崩坏：星穹铁道", AdapterId = "march7th", ToolName = "March7thAssistant" },
-            new() { Name = "鸣潮", AdapterId = "okww", ToolName = "OK-WW" },
-            new() { Name = "绝区零", AdapterId = "zzz", ToolName = "绝区零一条龙" }
-        ];
+        config.Games = GameCatalog.Games.Select(game => game.Create()).ToList();
         config.Tasks = config.Games.Select(g => new QueueTaskConfig { GameId = g.Id, Name = g.Name + " · 日常" }).ToList();
         return config;
     }

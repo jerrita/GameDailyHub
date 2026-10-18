@@ -91,13 +91,9 @@
                         <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Stretch" Visibility="{x:Bind ViewModel.ConfigVisibility, Mode=OneWay}">
                             <StackPanel Spacing="8">
                                 <TextBlock Text="游戏" Style="{ThemeResource TitleTextBlockStyle}"/>
-                                <TextBlock Text="选择游戏与助手，其余使用默认值，改动自动保存。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="选择游戏，配置程序路径，改动自动保存。" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <ComboBox ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" Width="300"/>
-                                <Button Content="添加游戏" Command="{x:Bind ViewModel.AddGameCommand}"/>
-                            </StackPanel>
-                            <TextBlock Text="还没有游戏。点击「添加游戏」开始。" Visibility="{x:Bind ViewModel.EmptySelectionVisibility, Mode=OneWay}"/>
+                            <ComboBox ItemsSource="{x:Bind ViewModel.Games}" DisplayMemberPath="Name" SelectedItem="{x:Bind ViewModel.SelectedGame, Mode=TwoWay}" Width="300" HorizontalAlignment="Left"/>
                             <StackPanel Spacing="20" Visibility="{x:Bind ViewModel.SelectionVisibility, Mode=OneWay}">
                                 <Grid ColumnSpacing="12"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBox Header="游戏程序" PlaceholderText="留空自动查找" Text="{Binding SelectedGame.Config.GamePath, Mode=TwoWay}"/>
@@ -125,7 +121,7 @@
                                     </StackPanel>
                                 </StackPanel>
                                 <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBox Header="{x:Bind ViewModel.ToolPathHeader, Mode=OneWay}" PlaceholderText="{x:Bind ViewModel.ToolPathPlaceholder, Mode=OneWay}" Text="{x:Bind ViewModel.SelectedToolPath, Mode=TwoWay}"/>
+                                    <TextBox Header="{x:Bind ViewModel.ToolPathHeader, Mode=OneWay}" PlaceholderText="留空自动查找" Text="{x:Bind ViewModel.SelectedToolPath, Mode=TwoWay}"/>
                                     <Button Grid.Column="1" Content="浏览…" Tag="ToolPath" Click="Browse_Click" VerticalAlignment="Bottom"/>
                                 </Grid>
                                 <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.ProfileVisibility, Mode=OneWay}">
@@ -135,12 +131,6 @@
                                 <TextBlock Text="{x:Bind ViewModel.ExecutionSummary, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                                 <Expander x:Name="AdvancedOptions" Header="高级" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                     <StackPanel Spacing="20">
-                                        <StackPanel Spacing="12">
-                                            <TextBlock Text="游戏信息" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                            <TextBox Header="游戏名称" Text="{Binding SelectedGame.Config.Name, Mode=TwoWay}"/>
-                                            <ComboBox Header="助手类型" ItemsSource="{x:Bind ViewModel.AdapterIds}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{x:Bind ViewModel.SelectedAdapterId, Mode=TwoWay}" HorizontalAlignment="Stretch"/>
-                                            <Button Content="移除游戏" Click="RemoveGame_Click"/>
-                                        </StackPanel>
                                         <StackPanel Spacing="8">
                                             <TextBlock Text="助手配置" Style="{ThemeResource SubtitleTextBlockStyle}"/>
                                             <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入…" Click="ImportAssistant_Click"/><Button Content="导出…" Click="ExportAssistant_Click"/></StackPanel>

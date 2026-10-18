@@ -46,7 +46,7 @@ public sealed class SourceAssistantTests : IDisposable
         game.ToolSourceDirectory = Path.Combine(_root, "custom source");
         var config = new AppConfig { Games = [game] };
         await new ConfigurationStore(_root).SaveAsync(config);
-        var loaded = Assert.Single((await new ConfigurationStore(_root).LoadAsync()).Games);
+        var loaded = Assert.Single((await new ConfigurationStore(_root).LoadAsync()).Games, game => game.AdapterId == adapter);
         Assert.Equal(AssistantRunMode.Source, loaded.ToolRunMode);
         Assert.Equal(game.ToolSourceDirectory, Sources.DirectoryFor(loaded));
         Assert.Equal(AssistantRunMode.Binary, JsonSerializer.Deserialize<GameConfig>("{}")!.ToolRunMode);
@@ -114,8 +114,9 @@ public sealed class SourceAssistantTests : IDisposable
     {
         var game = new GameConfig { AdapterId = "okww", ToolRunMode = AssistantRunMode.Source };
         Assert.Equal(2, Sources.Validate(game, true).Count);
-        game.AdapterId = "bettergi";
-        Assert.Throws<InvalidDataException>(() => ConfigurationStore.Validate(new() { Games = [game] }));
+        var config = AppConfig.CreateDefault();
+        config.Games[0].ToolRunMode = AssistantRunMode.Source;
+        Assert.Throws<InvalidDataException>(() => ConfigurationStore.Validate(config));
     }
     public void Dispose()
     {

@@ -26,6 +26,92 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         await store.SaveAsync(config); var loaded = await new ConfigurationStore(_directory).LoadAsync();
         Assert.Equal("ordinary", loaded.Games[0].Normal.Arguments); Assert.Equal("automation", loaded.Games[0].Daily.Arguments); Assert.Equal(4, loaded.Tasks.Count);
     }
+    [Fact]
+    public async Task ExistingConfigurationGetsSupportedGamesWithoutResettingPathsOrQueue()
+    {
+        var store = new ConfigurationStore(_directory);
+        var config = AppConfig.CreateDefault();
+        var missing = config.Games.Single(game => game.AdapterId == "zzz");
+        config.Games.Remove(missing);
+        config.Tasks.RemoveAll(task => task.GameId == missing.Id);
+        config.Games[0].ToolPath = Path.Combine(_directory, "saved-assistant.exe");
+        config.Games[0].GamePath = Path.Combine(_directory, "saved-client.exe");
+        config.Games[0].Daily.ProfileName = "saved-flow";
+        config.Games[0].Daily.TimeoutMinutes = 25;
+        config.Tasks.Reverse();
+        config.Tasks[0].Enabled = false;
+        config.Schedule.Enabled = true;
+        var originalGame = config.Games[0];
+        var originalTasks = config.Tasks.Select(task => (task.Id, task.GameId, task.Enabled)).ToArray();
+        var unsupported = new GameConfig { AdapterId = "retired-adapter", Name = "previous-entry" };
+        config.Games.Add(unsupported);
+        config.Tasks.Add(new() { GameId = unsupported.Id });
+        var originalJson = JsonSerializer.Serialize(config, JsonDefaults.Options);
+        await File.WriteAllTextAsync(store.ConfigPath, originalJson);
+
+        var loaded = await store.LoadAsync();
+
+        Assert.Null(store.RecoveryMessage);
+        Assert.Equal(new[] { "原神", "崩坏：星穹铁道", "鸣潮", "绝区零" }, loaded.Games.Select(game => game.Name));
+        Assert.Equal(originalGame.Id, loaded.Games[0].Id);
+        Assert.Equal(originalGame.ToolPath, loaded.Games[0].ToolPath);
+        Assert.Equal(originalGame.GamePath, loaded.Games[0].GamePath);
+        Assert.Equal("saved-flow", loaded.Games[0].Daily.ProfileName);
+        Assert.Equal(25, loaded.Games[0].Daily.TimeoutMinutes);
+        Assert.Equal(originalTasks, loaded.Tasks.Take(3).Select(task => (task.Id, task.GameId, task.Enabled)));
+        var zzz = loaded.Games.Single(game => game.AdapterId == "zzz");
+        var addedTask = Assert.Single(loaded.Tasks, task => task.GameId == zzz.Id);
+        Assert.True(loaded.Schedule.Enabled);
+        Assert.DoesNotContain(loaded.Tasks, task => task.GameId == unsupported.Id);
+
+        await store.SaveAsync(loaded);
+        Assert.Equal(originalJson, await File.ReadAllTextAsync(store.ConfigPath + ".bak"));
+        var again = await store.LoadAsync();
+        Assert.Equal(zzz.Id, again.Games.Single(game => game.AdapterId == "zzz").Id);
+        Assert.Equal(addedTask.Id, Assert.Single(again.Tasks, task => task.GameId == zzz.Id).Id);
+        Assert.Equal(4, again.Tasks.Count);
+    }
+
+    [Fact]
+    public async Task ImportRestoresMissingSupportedGameAndKeepsExistingTaskChoices()
+    {
+        var config = AppConfig.CreateDefault();
+        var zzz = config.Games.Single(game => game.AdapterId == "zzz");
+        config.Games.Remove(zzz);
+        config.Tasks.RemoveAll(task => task.GameId == zzz.Id || task.GameId == config.Games[0].Id);
+        config.Schedule.Enabled = true;
+        var importPath = Path.Combine(_directory, "prior-config.json");
+        await File.WriteAllTextAsync(importPath, JsonSerializer.Serialize(config, JsonDefaults.Options));
+
+        var imported = await new ConfigurationStore(_directory).ImportAsync(importPath);
+
+        Assert.False(imported.Schedule.Enabled);
+        Assert.Equal(4, imported.Games.Count);
+        Assert.DoesNotContain(imported.Tasks, task => task.GameId == config.Games[0].Id);
+        Assert.Single(imported.Tasks, task => task.GameId == imported.Games.Single(game => game.AdapterId == "zzz").Id);
+    }
+
+    [Fact]
+    public async Task SupportedEntriesAreUniqueAndUseCatalogNames()
+    {
+        var config = AppConfig.CreateDefault();
+        var original = config.Games[0];
+        original.Name = "prior-label";
+        original.ToolName = "prior-tool-label";
+        var duplicate = new GameConfig { AdapterId = original.AdapterId };
+        config.Games.Add(duplicate);
+        var task = new QueueTaskConfig { GameId = duplicate.Id, Name = "saved-task", Enabled = false };
+        config.Tasks.Add(task);
+
+        await new ConfigurationStore(_directory).SaveAsync(config);
+
+        Assert.Equal(4, config.Games.Count);
+        Assert.Same(original, Assert.Single(config.Games, game => game.AdapterId == "bettergi"));
+        Assert.Equal(("原神", "BetterGI"), (original.Name, original.ToolName));
+        Assert.Equal(original.Id, task.GameId);
+        Assert.Equal("saved-task", task.Name);
+        Assert.False(task.Enabled);
+    }
     [Theory]
     [InlineData(LaunchTarget.Assistant)]
     [InlineData(LaunchTarget.Launcher)]
@@ -97,7 +183,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         Assert.Equal(Path.Combine(_directory, "custom.exe"), game.ToolPath);
     }
     [Fact]
-    public void DefaultSearchUsesFirstExistingInstallationAndLeavesUnknownToolsAlone()
+    public void DefaultSearchUsesFirstExistingInstallationAndLeavesOtherToolsAlone()
     {
         var roots = new[] { Path.Combine(_directory, "missing"), Path.Combine(_directory, "first"), Path.Combine(_directory, "second") };
         foreach (var root in roots.Skip(1))
@@ -108,7 +194,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var game = new GameConfig { AdapterId = "okww" };
         ConfigurationSuggestions.Apply(game, roots);
         Assert.Equal(Path.Combine(roots[1], "ok-ww", "ok-ww.exe"), game.ToolPath);
-        game = new GameConfig { AdapterId = "generic" };
+        game = new GameConfig { AdapterId = "zzz" };
         ConfigurationSuggestions.Apply(game, roots);
         Assert.Empty(game.ToolPath);
         game.AdapterId = "bettergi";
@@ -164,7 +250,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         game.GamePath = "";
         ConfigurationSuggestions.Apply(game, roots);
         Assert.Equal(Path.Combine(roots[1], relativePath), game.GamePath);
-        foreach (var adapter in new[] { "generic", "bettergi", "march7th" })
+        foreach (var adapter in new[] { "zzz", "bettergi", "march7th" })
         {
             game = new() { AdapterId = adapter };
             ConfigurationSuggestions.Apply(game, roots);
@@ -175,9 +261,9 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
     public async Task CorruptionRestoresBackupAndPreservesDamagedFile()
     {
         var store = new ConfigurationStore(_directory); var config = AppConfig.CreateDefault();
-        await store.SaveAsync(config); config.Games[0].Name = "new"; await store.SaveAsync(config);
+        await store.SaveAsync(config); config.Games[0].Daily.ProfileName = "changed-profile"; await store.SaveAsync(config);
         await File.WriteAllTextAsync(store.ConfigPath, "{");
-        var loaded = await store.LoadAsync(); Assert.Equal("原神", loaded.Games[0].Name);
+        var loaded = await store.LoadAsync(); Assert.Empty(loaded.Games[0].Daily.ProfileName);
         Assert.NotNull(store.RecoveryMessage); Assert.Single(Directory.GetFiles(_directory, "*.damaged-*"));
     }
     [Fact]
@@ -281,7 +367,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
     public void LogRulesNeedStartAndRootExit()
     {
         var profile = new DailyTaskProfile { Completion = CompletionMode.LogRules, StartPattern = "^START$", SuccessPattern = "^DONE$", FailurePattern = "^FAIL$" };
-        var monitor = new EvidenceMonitor("generic", profile, 5); monitor.Accept("DONE"); Assert.Null(monitor.Evaluate(false, null));
+        var monitor = new EvidenceMonitor("zzz", profile, 5); monitor.Accept("DONE"); Assert.Null(monitor.Evaluate(false, null));
         monitor.Accept("START"); monitor.Accept("DONE"); Assert.Null(monitor.Evaluate(false, null)); Assert.Equal(RunState.Success, monitor.Evaluate(true, 0)!.State);
     }
     [Fact]

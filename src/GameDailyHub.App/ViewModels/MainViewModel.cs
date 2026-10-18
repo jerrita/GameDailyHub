@@ -46,7 +46,6 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<TaskRowViewModel> Tasks { get; } = [];
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<HistoryRowViewModel> History { get; } = [];
-    public IReadOnlyList<string> AdapterIds { get; } = ["bettergi", "march7th", "okww", "zzz", "generic"];
     public IReadOnlyList<TriggerMode> TriggerModes { get; } = Enum.GetValues<TriggerMode>();
     public IReadOnlyList<CompletionMode> CompletionModes { get; } = Enum.GetValues<CompletionMode>();
     public IReadOnlyList<AssistantRunMode> AssistantRunModes { get; } = Enum.GetValues<AssistantRunMode>();
@@ -98,22 +97,6 @@ public partial class MainViewModel : ObservableObject
     public Visibility ConfirmationVisibility => AwaitingConfirmation ? Visibility.Visible : Visibility.Collapsed;
     public string DataDirectory => _store.Root;
     public string ActualLogDirectory => _journal?.LogDirectory ?? Path.Combine(_store.Root, "logs");
-    public string? SelectedAdapterId
-    {
-        get => SelectedGame?.Config.AdapterId;
-        set
-        {
-            if (SelectedGame is null || value is null || value == SelectedGame.Config.AdapterId) return;
-            SelectedGame.Config.AdapterId = value;
-            if (!SourceAssistantService.Supports(value)) SelectedGame.Config.ToolRunMode = AssistantRunMode.Binary;
-            SelectedGame.Config.ToolName = value switch { "bettergi" => "BetterGI", "march7th" => "March7thAssistant", "okww" => "OK-WW", "zzz" => "绝区零一条龙", _ => "自定义助手" };
-            SelectedGame.Config.Daily.Trigger = value == "generic" ? TriggerMode.Manual : TriggerMode.VerifiedCommand;
-            SelectedGame.Config.Daily.Completion = value == "generic" ? CompletionMode.Manual : CompletionMode.AdapterEvidence;
-            ConfigurationSuggestions.Apply(SelectedGame.Config);
-            SelectedGame.Refresh();
-            RefreshConfigurationOptions();
-        }
-    }
     public TriggerMode SelectedTrigger
     {
         get => SelectedGame?.Config.Daily.Trigger ?? TriggerMode.VerifiedCommand;
@@ -132,7 +115,6 @@ public partial class MainViewModel : ObservableObject
     public string ProfileHeader => SelectedGame?.Config.AdapterId == "bettergi" ? "一条龙配置名称" : "工作流名称（可选）";
     public string ProfileHint => SelectedGame?.Config.AdapterId == "bettergi" ? "填写 BetterGI 中已保存的一条龙名称。" : "留空运行助手默认日常。";
     public string ToolPathHeader => SelectedGame?.Config.AdapterId == "march7th" ? "助手程序 · March7th Assistant.exe" : "助手程序 · " + (SelectedGame?.ToolName ?? "");
-    public string ToolPathPlaceholder => SelectedGame?.Config.AdapterId == "generic" ? "选择助手程序" : "留空自动查找";
     public AssistantRunMode SelectedRunMode
     {
         get => SelectedGame?.Config.ToolRunMode ?? AssistantRunMode.Binary;
@@ -177,7 +159,6 @@ public partial class MainViewModel : ObservableObject
         foreach (var name in new[] { nameof(SourceStatus), nameof(CanOpenSourceDirectory), nameof(SourceOutput), nameof(SourceOutputVisibility) }) OnPropertyChanged(name);
     }
     public Visibility SelectionVisibility => SelectedGame is null ? Visibility.Collapsed : Visibility.Visible;
-    public Visibility EmptySelectionVisibility => SelectedGame is null ? Visibility.Visible : Visibility.Collapsed;
     public string SelectedToolPath
     {
         get => SelectedGame?.Config.ToolPath ?? "";
@@ -218,7 +199,7 @@ public partial class MainViewModel : ObservableObject
         try
         {
             SelectedGame?.Refresh();
-            foreach (var name in new[] { nameof(SelectedAdapterId), nameof(SelectedTrigger), nameof(SelectedCompletion), nameof(ProfileVisibility), nameof(AutomaticVisibility), nameof(CustomArgumentsVisibility), nameof(LogRulesVisibility), nameof(March7thVisibility), nameof(ProfileHeader), nameof(ProfileHint), nameof(ToolPathHeader), nameof(ToolPathPlaceholder), nameof(SelectedToolPath), nameof(SelectionVisibility), nameof(EmptySelectionVisibility), nameof(ExecutionSummary) }) OnPropertyChanged(name);
+            foreach (var name in new[] { nameof(SelectedTrigger), nameof(SelectedCompletion), nameof(ProfileVisibility), nameof(AutomaticVisibility), nameof(CustomArgumentsVisibility), nameof(LogRulesVisibility), nameof(March7thVisibility), nameof(ProfileHeader), nameof(ProfileHint), nameof(ToolPathHeader), nameof(SelectedToolPath), nameof(SelectionVisibility), nameof(ExecutionSummary) }) OnPropertyChanged(name);
             foreach (var name in new[] { nameof(SelectedRunMode), nameof(SelectedSourceDirectory), nameof(RunModeVisibility), nameof(SourceVisibility), nameof(BinaryVisibility), nameof(SourceDirectoryHint) }) OnPropertyChanged(name);
             RefreshSourceDetails();
         }
@@ -234,8 +215,6 @@ public partial class MainViewModel : ObservableObject
     public IRelayCommand CancelSourceCommand { get; }
     public IRelayCommand StopCommand { get; }
     public IRelayCommand SkipCommand { get; }
-    public IRelayCommand AddGameCommand { get; }
-    public IRelayCommand RemoveGameCommand { get; }
     public IRelayCommand AddTaskCommand { get; }
     public IRelayCommand RemoveTaskCommand { get; }
     public IRelayCommand MoveUpCommand { get; }
@@ -272,8 +251,6 @@ public partial class MainViewModel : ObservableObject
         });
         StopCommand = new RelayCommand(() => _engine.Stop());
         SkipCommand = new RelayCommand(() => _engine.SkipCurrent());
-        AddGameCommand = new RelayCommand(AddGame);
-        RemoveGameCommand = new RelayCommand(RemoveGame);
         AddTaskCommand = new RelayCommand(AddTask);
         RemoveTaskCommand = new RelayCommand(() => { if (SelectedTask is not null && !IsBusy) { _config.Tasks.Remove(SelectedTask.Config); ReloadTasks(); } });
         MoveUpCommand = new RelayCommand(() => MoveTask(-1));
@@ -434,19 +411,6 @@ public partial class MainViewModel : ObservableObject
     {
         Tasks.Clear();
         foreach (var t in _config.Tasks) Tasks.Add(new(t, _config.Games.First(g => g.Id == t.GameId).Name));
-    }
-    private void AddGame()
-    {
-        if (IsBusy) return;
-        var game = new GameConfig { Daily = new() { Trigger = TriggerMode.Manual, Completion = CompletionMode.Manual } };
-        _config.Games.Add(game); var card = CreateCard(game); Games.Add(card); SelectedGame = card; SelectedPage = "config";
-    }
-    private void RemoveGame()
-    {
-        if (SelectedGame is null || IsBusy) return;
-        var game = SelectedGame.Config;
-        _config.Tasks.RemoveAll(t => t.GameId == game.Id); _config.Games.Remove(game); ReloadGames();
-        Show("已移除游戏及其队列任务");
     }
     private void AddTask()
     {

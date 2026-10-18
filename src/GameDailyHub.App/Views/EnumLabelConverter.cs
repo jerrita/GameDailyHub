@@ -21,7 +21,6 @@ public sealed class EnumLabelConverter : IValueConverter
         "Default" => "跟随系统",
         "Light" => "浅色",
         "Dark" => "深色",
-        "generic" => "自定义助手",
         "bettergi" => "BetterGI",
         "march7th" => "March7thAssistant",
         "okww" => "OK-WW",

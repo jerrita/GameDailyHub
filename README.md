@@ -1,6 +1,6 @@
 # GameDailyHub
 
-原生 WinUI 3 二游启动与一条龙管理器。支持原神 / BetterGI、崩坏：星穹铁道 / March7thAssistant、鸣潮 / OK-WW、绝区零 / ZenlessZoneZero-OneDragon，以及通过配置扩展的其他游戏。
+原生 WinUI 3 二游启动与一条龙管理器。固定支持原神 / BetterGI、崩坏：星穹铁道 / March7thAssistant、鸣潮 / OK-WW、绝区零 / ZenlessZoneZero-OneDragon。
 
 ## 运行
 
@@ -17,7 +17,7 @@
 - **停止任务**：取消当前批次，清理本次自动化创建的进程。
 - **跳过当前任务**：停止当前项、完成清理后继续下一项。等待人工判定期间同样生效，也可勾选已停止后使用「确认跳过」。
 
-所有日常入口共用串行引擎；忙碌时拒绝重复提交。其他游戏仍可通过卡片独立普通启动。
+所有日常入口共用串行引擎；忙碌时拒绝重复提交。其他游戏卡片仍可独立普通启动。
 
 配置项的取舍见 [配置精简决策](docs/SETTINGS.md)。
 
@@ -32,9 +32,9 @@
 | 鸣潮 | 本机 `ok-ww.exe` | 按实际安装情况选择 | `-t 1` |
 | 绝区零 | `OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe` | 可留空 | 安装版 `--onedragon`；源码调用官方应用入口 |
 
-助手路径留空时，依次检查 `%LocalAppData%/Programs`、`%ProgramFiles%`、`%ProgramFiles(x86)%`、`%LocalAppData%` 和 Hub 所在目录下的 `BetterGI/BetterGI.exe`、`March7thAssistant/March7th Assistant.exe`、`ok-ww/ok-ww.exe`。找到后显示并保存实际路径；手动填写的路径始终优先。March7th 为解压使用，可放在 Hub 同目录的 `March7thAssistant` 文件夹，或手动选择。未找到时提示选择已安装的助手；通用助手需手动指定路径。
+助手路径留空时，依次检查 `%LocalAppData%/Programs`、`%ProgramFiles%`、`%ProgramFiles(x86)%`、`%LocalAppData%` 和 Hub 所在目录下的 `BetterGI/BetterGI.exe`、`March7thAssistant/March7th Assistant.exe`、`ok-ww/ok-ww.exe`、`ZenlessZoneZero-OneDragon/OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe`。找到后显示并保存实际路径；手动填写的路径始终优先。March7th 为解压使用，可放在 Hub 同目录的 `March7thAssistant` 文件夹，或手动选择。未找到时提示选择已安装的助手。
 
-常用设置只显示两个程序路径与适用的任务名称。自定义参数、工作目录、超时重试和日志路径归入「高级」；命令参数、日志正则和 March7th 专属配置仅在相应场景出现。选择官方入口时自动生成参数，工作目录和日志目录沿用助手默认值。March7th 同目录存在 Launcher 时自动补全界面入口，保留手动选择。通用助手默认手动执行并人工确认。游戏启动参数始终单独保存。
+常用设置只显示两个程序路径与适用的任务名称。自定义参数、工作目录、超时重试和日志路径归入「高级」；命令参数、日志正则和 March7th 专属配置仅在相应场景出现。选择官方入口时自动生成参数，工作目录和日志目录沿用助手默认值。March7th 同目录存在 Launcher 时自动补全界面入口，保留手动选择。游戏启动参数始终单独保存。
 
 ### 源码运行
 
@@ -87,7 +87,7 @@ scheduled_tasks: []
 
 ### 绝区零一条龙
 
-接入基线为 2026-10-18 核查的官方 main 提交 `bdafa6e3`。新配置包含绝区零卡片；已有配置可在「游戏」新增游戏并选择「绝区零一条龙」。先在助手内配置游戏路径、账号、模型与默认应用组。
+接入基线为 2026-10-18 核查的官方 main 提交 `bdafa6e3`。启动时将已有配置与支持列表同步，自动补齐绝区零卡片和日常队列项，保留已支持游戏的路径、日常设置及任务顺序。游戏名称与助手固定对应。先在助手内配置游戏路径、账号、模型与默认应用组。
 
 安装版选择 `OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe`，留空时查找默认安装根目录下的 `ZenlessZoneZero-OneDragon` 文件夹。普通启动使用空参数，自动日常使用 `--onedragon`。安装版和源码模式均继承 Hub 的管理员权限，任务进程继续由 Hub 管理。
 
@@ -140,10 +140,6 @@ scheduled_tasks: []
 本次验证结果见 docs/VERIFICATION.md，涵盖六个页面、按需显示和配置保存。界面测试结果来自普通权限测试版；交付版通过静态提取内嵌清单验证 `requireAdministrator`，测试不启动交付版。发布构建显式包含 WinUI 项目 PRI/XBF 资源。
 
 受限执行环境可能阻止 NuGet 网络、VSTest 宿主通信或进程枚举，需要在具备对应权限的 Windows 终端执行。详细验证记录见 [docs/VERIFICATION.md](docs/VERIFICATION.md)。
-
-## 扩展
-
-核心接口为 `IToolAdapter`，Windows 内置 BetterGI、March7th、OK-WW、绝区零一条龙、Generic 五种实现。新增游戏可直接选择通用适配器，配置命令加日志规则或人工判定。专用工具可新增适配器并注册到 `AdapterRegistry`，复用现有界面、持久化和队列引擎。
 
 源码结构：`src/GameDailyHub.Core`（模型、契约、编排），`src/GameDailyHub.Windows`（适配器、进程、配置、日志），`src/GameDailyHub.App`（WinUI / MVVM），`tests/GameDailyHub.Tests`（测试）。
 

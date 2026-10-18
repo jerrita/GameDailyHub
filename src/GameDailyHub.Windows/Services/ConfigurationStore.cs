@@ -38,6 +38,7 @@ public sealed class ConfigurationStore(string root)
     }
     public async Task SaveAsync(AppConfig config)
     {
+        SynchronizeGames(config);
         Validate(config);
         ApplySuggestions(config);
         await _gate.WaitAsync();
@@ -64,6 +65,7 @@ public sealed class ConfigurationStore(string root)
     {
         var config = JsonSerializer.Deserialize<AppConfig>(await File.ReadAllTextAsync(path), JsonDefaults.Options)
             ?? throw new InvalidDataException("配置为空");
+        SynchronizeGames(config);
         Validate(config);
         return ApplySuggestions(config);
     }
@@ -83,16 +85,46 @@ public sealed class ConfigurationStore(string root)
         }
         return config;
     }
-    public static void Validate(AppConfig config)
+    private static void SynchronizeGames(AppConfig config)
+    {
+        ValidateStructure(config);
+        var existing = config.Games.Where(game => GameCatalog.Supports(game.AdapterId)).GroupBy(game => game.AdapterId)
+            .ToDictionary(group => group.Key, group => group.First());
+        var retainedIds = config.Games.Where(game => existing.ContainsKey(game.AdapterId))
+            .ToDictionary(game => game.Id, game => existing[game.AdapterId].Id);
+        config.Tasks.RemoveAll(task => !retainedIds.ContainsKey(task.GameId));
+        foreach (var task in config.Tasks) task.GameId = retainedIds[task.GameId];
+        config.Games = GameCatalog.Games.Select(definition =>
+        {
+            if (!existing.TryGetValue(definition.AdapterId, out var game))
+            {
+                game = definition.Create();
+                config.Tasks.Add(new() { GameId = game.Id, Name = definition.Name + " · 日常" });
+            }
+            game.Name = definition.Name;
+            game.ToolName = definition.ToolName;
+            return game;
+        }).ToList();
+    }
+    private static void ValidateStructure(AppConfig config)
     {
         if (config.SchemaVersion != 1) throw new InvalidDataException("不支持配置版本 " + config.SchemaVersion);
         if (config.Games is null || config.Tasks is null || config.Schedule is null) throw new InvalidDataException("配置缺少必需字段");
         if (config.Games.Any(g => g is null) || config.Tasks.Any(t => t is null)) throw new InvalidDataException("游戏和任务列表不能包含空对象");
+        if (config.Games.Any(game => game.AdapterId is null)) throw new InvalidDataException("助手标识须为字符串");
         if (config.Games.Select(g => g.Id).Distinct().Count() != config.Games.Count || config.Tasks.Select(t => t.Id).Distinct().Count() != config.Tasks.Count)
             throw new InvalidDataException("游戏或任务 ID 重复");
+        if (config.Games.Any(game => game.Id == Guid.Empty) || config.Tasks.Any(task => task.Id == Guid.Empty || !config.Games.Any(game => game.Id == task.GameId)))
+            throw new InvalidDataException("任务引用或 ID 无效");
+    }
+    public static void Validate(AppConfig config)
+    {
+        ValidateStructure(config);
+        if (config.Games.Count != GameCatalog.Games.Count || config.Games.Select(game => game.AdapterId).Distinct().Count() != GameCatalog.Games.Count)
+            throw new InvalidDataException("游戏列表与支持范围不一致");
         foreach (var g in config.Games)
         {
-            if (g.Id == Guid.Empty || string.IsNullOrWhiteSpace(g.Name) || g.Normal is null || g.Daily is null || !new[] { "bettergi", "march7th", "okww", "zzz", "generic" }.Contains(g.AdapterId))
+            if (string.IsNullOrWhiteSpace(g.Name) || g.Normal is null || g.Daily is null || !GameCatalog.Supports(g.AdapterId))
                 throw new InvalidDataException("游戏信息不完整或适配器无效");
             if (new[] { g.GamePath, g.LauncherPath, g.ToolPath, g.ToolGuiPath, g.ToolConfigPath, g.ToolSourceDirectory, g.Normal.Arguments, g.Normal.WorkingDirectory, g.Daily.Arguments, g.Daily.ProfileName, g.Daily.LogPath, g.Daily.WorkingDirectory }.Any(s => s is null))
                 throw new InvalidDataException("路径及参数须为字符串");

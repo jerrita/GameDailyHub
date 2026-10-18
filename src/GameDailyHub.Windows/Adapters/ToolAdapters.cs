@@ -11,7 +11,7 @@ public sealed class AdapterRegistry : IAdapterRegistry
     private readonly Dictionary<string, IToolAdapter> _adapters;
     public AdapterRegistry(ProcessService processes, SourceAssistantService? sources = null)
     {
-        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new ZzzAdapter(processes, sources), new GenericAdapter(processes)];
+        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new ZzzAdapter(processes, sources)];
         _adapters = adapters.ToDictionary(a => a.Capabilities.Id);
     }
     public IToolAdapter Get(string id) => _adapters.TryGetValue(id, out var adapter) ? adapter : throw new InvalidOperationException("未知适配器：" + id);
@@ -65,13 +65,13 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
         var source = game.ToolRunMode == AssistantRunMode.Source && (daily || game.Normal.Target == LaunchTarget.Assistant);
         void CheckFile(string path, string name)
         {
-            if (string.IsNullOrWhiteSpace(path) && name == "助手程序" && Capabilities.Id != "generic") errors.Add("未找到助手，请在「游戏」中选择助手程序");
+            if (string.IsNullOrWhiteSpace(path) && name == "助手程序") errors.Add("未找到助手，请在「游戏」中选择助手程序");
             else if (string.IsNullOrWhiteSpace(path) || !File.Exists(path)) errors.Add(name + "不存在，请重新选择");
             else if (!Path.GetExtension(path).Equals(".exe", StringComparison.OrdinalIgnoreCase)) errors.Add(name + "需为 .exe 文件");
         }
         if (!daily)
         {
-            if (game.Normal.Target == LaunchTarget.Game && string.IsNullOrWhiteSpace(game.GamePath) && Capabilities.Id != "generic")
+            if (game.Normal.Target == LaunchTarget.Game && string.IsNullOrWhiteSpace(game.GamePath))
                 errors.Add("未找到游戏，请在「游戏」中选择游戏程序");
             else if (source) errors.AddRange(Sources.Validate(game, true));
             else CheckFile(game.NormalPath, "普通启动目标");
@@ -96,8 +96,6 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
                 foreach (var pattern in new[] { game.Daily.StartPattern, game.Daily.SuccessPattern, game.Daily.FailurePattern })
                     try { _ = new Regex(pattern, RegexOptions.None, TimeSpan.FromMilliseconds(100)); } catch (ArgumentException) { errors.Add("日志正则表达式格式无效"); }
             }
-            if (Capabilities.Id == "generic" && game.Daily.Trigger != TriggerMode.Manual && game.Daily.Completion == CompletionMode.AdapterEvidence) errors.Add("通用适配器需要配置日志规则或人工判定");
-            if (Capabilities.Id == "generic" && game.Daily.Trigger == TriggerMode.VerifiedCommand) errors.Add("通用适配器请选择自定义命令或半自动方式");
         }
         var working = daily ? game.Daily.WorkingDirectory : game.Normal.WorkingDirectory;
         if (!source && !string.IsNullOrWhiteSpace(working) && !Directory.Exists(working)) errors.Add("工作目录不存在");
@@ -263,10 +261,4 @@ public sealed class ZzzAdapter(ProcessService processes, SourceAssistantService?
         if (daily && game.Daily.Trigger == TriggerMode.CustomCommand && !CommandArguments.Parse(game.Daily.Arguments).Any(a => a is "-o" or "--onedragon"))
             errors.Add("安装版一条龙自动任务需要 -o/--onedragon 参数");
     }
-}
-
-public sealed class GenericAdapter(ProcessService processes) : ProcessToolAdapter(processes)
-{
-    public override AdapterCapabilities Capabilities { get; } = new("generic", "用户配置", "", false);
-    protected override string VerifiedArguments(GameConfig game) => throw new InvalidOperationException("请配置自定义入口");
 }

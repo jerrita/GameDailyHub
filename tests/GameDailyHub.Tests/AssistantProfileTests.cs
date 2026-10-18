@@ -26,12 +26,12 @@ public sealed class AssistantProfileTests : IDisposable
     [Fact]
     public void ExportCarriesDailySettingsAndImportAppliesThem()
     {
-        var source = Game("generic");
+        var source = Game("zzz");
         source.Daily = new() { Trigger = TriggerMode.CustomCommand, Arguments = "--task daily", ProfileName = "flow", Completion = CompletionMode.LogRules, StartPattern = "a", SuccessPattern = "b", FailurePattern = "c", TimeoutMinutes = 30, RetryCount = 2, ContinueOnFailure = false, LogPath = @"C:\source-machine\log.txt", WorkingDirectory = @"C:\source-machine" };
         var json = AssistantProfileService.Export(source, null);
         Assert.DoesNotContain("source-machine", json);
 
-        var target = Game("generic"); target.Daily.LogPath = @"D:\other\log.txt";
+        var target = Game("zzz"); target.Daily.LogPath = @"D:\other\log.txt";
         AssistantProfileService.Import(json, target, null);
         Assert.Equal(("--task daily", "flow", CompletionMode.LogRules), (target.Daily.Arguments, target.Daily.ProfileName, target.Daily.Completion));
         Assert.Equal((30d, 2, false), (target.Daily.TimeoutMinutes, target.Daily.RetryCount, target.Daily.ContinueOnFailure));
@@ -135,14 +135,14 @@ public sealed class AssistantProfileTests : IDisposable
     [InlineData("User/Scripts/x.js", "bettergi", false)]
     [InlineData("configs/a.json", "okww", true)]
     [InlineData("C:/Windows/x.json", "okww", false)]
-    [InlineData("configs/a.json", "generic", false)]
+    [InlineData("configs/a.json", "zzz", false)]
     public void OnlyKnownRelativeFilesAreAccepted(string path, string adapter, bool allowed) => Assert.Equal(allowed, AssistantProfileService.IsAllowed(adapter, path));
 
     [Fact]
     public void ImportRejectsTraversalInFile()
     {
         var to = Make("to");
-        var json = AssistantProfileService.Export(Game("generic"), null);
+        var json = AssistantProfileService.Export(Game("zzz"), null);
         var profile = AssistantProfileService.Read(json); profile.AdapterId = "okww";
         profile.Files.Add(new() { Path = "configs/../../evil.json", Content = "{}" });
         Assert.Throws<InvalidDataException>(() => AssistantProfileService.Import(System.Text.Json.JsonSerializer.Serialize(profile, JsonDefaults.Options), Game("okww"), to));
@@ -154,8 +154,8 @@ public sealed class AssistantProfileTests : IDisposable
     [Theory]
     [InlineData("not json")]
     [InlineData("{\"kind\":\"other\"}")]
-    [InlineData("{\"kind\":\"GameDailyHub.AssistantProfile\",\"schemaVersion\":1,\"adapterId\":\"generic\",\"timeoutMinutes\":0}")]
-    [InlineData("{\"kind\":\"GameDailyHub.AssistantProfile\",\"schemaVersion\":1,\"adapterId\":\"generic\",\"retryCount\":99}")]
-    [InlineData("{\"kind\":\"GameDailyHub.AssistantProfile\",\"schemaVersion\":2,\"adapterId\":\"generic\"}")]
-    public void InvalidFilesAreRejected(string json) => Assert.Throws<InvalidDataException>(() => AssistantProfileService.Import(json, Game("generic"), null));
+    [InlineData("{\"kind\":\"GameDailyHub.AssistantProfile\",\"schemaVersion\":1,\"adapterId\":\"zzz\",\"timeoutMinutes\":0}")]
+    [InlineData("{\"kind\":\"GameDailyHub.AssistantProfile\",\"schemaVersion\":1,\"adapterId\":\"zzz\",\"retryCount\":99}")]
+    [InlineData("{\"kind\":\"GameDailyHub.AssistantProfile\",\"schemaVersion\":2,\"adapterId\":\"zzz\"}")]
+    public void InvalidFilesAreRejected(string json) => Assert.Throws<InvalidDataException>(() => AssistantProfileService.Import(json, Game("zzz"), null));
 }

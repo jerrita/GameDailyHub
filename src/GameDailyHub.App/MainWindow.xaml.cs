@@ -109,12 +109,6 @@ public sealed partial class MainWindow : Window
     {
         if (InitializationSucceeded) ViewModel.ApplyTheme();
     }
-    private async void RemoveGame_Click(object sender, RoutedEventArgs args)
-    {
-        if (ViewModel.SelectedGame is not { } game) return;
-        var dialog = new ContentDialog { XamlRoot = RootGrid.XamlRoot, Title = "移除「" + game.Name + "」？", Content = "该游戏及其队列任务将被移除。", PrimaryButtonText = "移除", CloseButtonText = "取消", DefaultButton = ContentDialogButton.Close };
-        if (await dialog.ShowAsync() == ContentDialogResult.Primary) ViewModel.RemoveGameCommand.Execute(null);
-    }
     private async void Startup_Toggled(object sender, RoutedEventArgs args)
     {
         if (!InitializationSucceeded || _applyingStartup) return;
@@ -161,7 +155,8 @@ public sealed partial class MainWindow : Window
         void Mark(string step) => File.AppendAllText(Path.Combine(outputRoot, "steps.log"), step + "\n");
         Mark("Smoke");
         if (!InitializationSucceeded) throw new InvalidOperationException(ViewModel.Message);
-        if (ViewModel.Games.Count != 4) throw new InvalidOperationException("默认游戏未正确载入");
+        if (!ViewModel.Games.Select(game => game.Config.AdapterId).SequenceEqual(Core.Models.GameCatalog.Games.Select(game => game.AdapterId)))
+            throw new InvalidOperationException("支持的游戏未正确载入");
         ViewModel.SelectedGame!.ConfigureCommand.Execute(null);
         if (ViewModel.SelectedPage != "config") throw new InvalidOperationException("卡片配置导航失败");
         if (AdvancedOptions.IsExpanded) throw new InvalidOperationException("高级设置应默认收起");

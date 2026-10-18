@@ -130,6 +130,7 @@ public static partial class AssistantProfileService
         catch (JsonException e) { throw new InvalidDataException("不是有效的助手配置文件：" + e.Message, e); }
         if (profile.Kind != AssistantProfile.FileKind) throw new InvalidDataException("不是 GameDailyHub 助手配置文件（整体配置请在“设置 → 数据与备份”导入）");
         if (profile.SchemaVersion != 1) throw new InvalidDataException("不支持助手配置版本 " + profile.SchemaVersion);
+        if (!GameCatalog.Supports(profile.AdapterId)) throw new InvalidDataException("不支持的助手类型");
         if (new[] { profile.Arguments, profile.ProfileName, profile.StartPattern, profile.SuccessPattern, profile.FailurePattern, profile.ToolName }.Any(s => s is null) || profile.Files is null)
             throw new InvalidDataException("助手配置包含无效的空值");
         if (!Enum.IsDefined(profile.Trigger) || !Enum.IsDefined(profile.Completion)) throw new InvalidDataException("枚举配置无效");
