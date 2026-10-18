@@ -157,7 +157,6 @@ public sealed partial class MainWindow
                 ViewModel.HasMessage = false;
             }
             Mark("Render " + page);
-            if (page == "settings") ((Expander)((SettingsPage)ContentFrame.Content).FindName("DataOptions")).IsExpanded = true;
             VerifyNavigation(page is "source" or "zzz-source" ? "config" : page);
             RootGrid.UpdateLayout();
             await Task.Delay(350);
