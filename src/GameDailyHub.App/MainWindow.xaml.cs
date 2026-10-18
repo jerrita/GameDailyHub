@@ -161,7 +161,7 @@ public sealed partial class MainWindow : Window
         void Mark(string step) => File.AppendAllText(Path.Combine(outputRoot, "steps.log"), step + "\n");
         Mark("Smoke");
         if (!InitializationSucceeded) throw new InvalidOperationException(ViewModel.Message);
-        if (ViewModel.Games.Count != 3) throw new InvalidOperationException("默认游戏未正确载入");
+        if (ViewModel.Games.Count != 4) throw new InvalidOperationException("默认游戏未正确载入");
         ViewModel.SelectedGame!.ConfigureCommand.Execute(null);
         if (ViewModel.SelectedPage != "config") throw new InvalidOperationException("卡片配置导航失败");
         if (AdvancedOptions.IsExpanded) throw new InvalidOperationException("高级设置应默认收起");
@@ -225,17 +225,18 @@ public sealed partial class MainWindow : Window
         RootGrid.UpdateLayout();
         await Task.Delay(150);
         if (PageScroll.VerticalOffset > 2) throw new InvalidOperationException("切换页面后未回到顶部");
-        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source" })
+        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source", "zzz-source" })
         {
-            ViewModel.SelectedPage = page == "source" ? "config" : page;
-            if (page == "source")
+            ViewModel.SelectedPage = page is "source" or "zzz-source" ? "config" : page;
+            if (page is "source" or "zzz-source")
             {
-                ViewModel.SelectedGame = ViewModel.Games[1];
+                var index = page == "source" ? 1 : 3;
+                ViewModel.SelectedGame = ViewModel.Games[index];
                 SourceModeEditor.SelectedItem = Core.Models.AssistantRunMode.Source;
-                SourceDirectoryEditor.Text = Path.Combine(outputRoot, "source checkout");
+                SourceDirectoryEditor.Text = Path.Combine(outputRoot, page + " checkout");
                 await ViewModel.SaveCommand.ExecuteAsync(null);
                 persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
-                if (persisted.Games[1].ToolRunMode != Core.Models.AssistantRunMode.Source || persisted.Games[1].ToolSourceDirectory != SourceDirectoryEditor.Text
+                if (persisted.Games[index].ToolRunMode != Core.Models.AssistantRunMode.Source || persisted.Games[index].ToolSourceDirectory != SourceDirectoryEditor.Text
                     || ViewModel.SourceVisibility != Visibility.Visible || ViewModel.BinaryVisibility != Visibility.Collapsed)
                     throw new InvalidOperationException("源码模式与路径绑定或持久化失败");
                 ViewModel.HasMessage = false;
@@ -253,6 +254,6 @@ public sealed partial class MainWindow : Window
             using var file = File.Create(Path.Combine(outputRoot, page + ".png"));
             await memory.AsStreamForRead().CopyToAsync(file);
         }
-        await File.WriteAllTextAsync(Path.Combine(outputRoot, "smoke.json"), System.Text.Json.JsonSerializer.Serialize(new { Success = true, Pages = 6, Games = 3, UiConfigurationRoundTrip = true, SourceConfigurationRoundTrip = true, ProgressiveOptions = true, ScheduleTimeRoundTrip = true, StartupAvailable = ViewModel.StartupAvailable, Elevated = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator), NavigationOpen = Navigation.IsPaneOpen, NavigationMode = Navigation.DisplayMode.ToString(), BindingErrors = App.BindingErrors, Timestamp = DateTimeOffset.Now }));
+        await File.WriteAllTextAsync(Path.Combine(outputRoot, "smoke.json"), System.Text.Json.JsonSerializer.Serialize(new { Success = true, Pages = 6, Games = ViewModel.Games.Count, UiConfigurationRoundTrip = true, SourceConfigurationRoundTrip = true, ProgressiveOptions = true, ScheduleTimeRoundTrip = true, StartupAvailable = ViewModel.StartupAvailable, Elevated = new System.Security.Principal.WindowsPrincipal(System.Security.Principal.WindowsIdentity.GetCurrent()).IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator), NavigationOpen = Navigation.IsPaneOpen, NavigationMode = Navigation.DisplayMode.ToString(), BindingErrors = App.BindingErrors, Timestamp = DateTimeOffset.Now }));
     }
 }

@@ -90,7 +90,8 @@ public sealed class AppConfig
         config.Games = [
             new() { Name = "原神", AdapterId = "bettergi", ToolName = "BetterGI" },
             new() { Name = "崩坏：星穹铁道", AdapterId = "march7th", ToolName = "March7thAssistant" },
-            new() { Name = "鸣潮", AdapterId = "okww", ToolName = "OK-WW" }
+            new() { Name = "鸣潮", AdapterId = "okww", ToolName = "OK-WW" },
+            new() { Name = "绝区零", AdapterId = "zzz", ToolName = "绝区零一条龙" }
         ];
         config.Tasks = config.Games.Select(g => new QueueTaskConfig { GameId = g.Id, Name = g.Name + " · 日常" }).ToList();
         return config;

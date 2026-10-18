@@ -46,7 +46,7 @@ public partial class MainViewModel : ObservableObject
     public ObservableCollection<TaskRowViewModel> Tasks { get; } = [];
     public ObservableCollection<string> LogLines { get; } = [];
     public ObservableCollection<HistoryRowViewModel> History { get; } = [];
-    public IReadOnlyList<string> AdapterIds { get; } = ["bettergi", "march7th", "okww", "generic"];
+    public IReadOnlyList<string> AdapterIds { get; } = ["bettergi", "march7th", "okww", "zzz", "generic"];
     public IReadOnlyList<TriggerMode> TriggerModes { get; } = Enum.GetValues<TriggerMode>();
     public IReadOnlyList<CompletionMode> CompletionModes { get; } = Enum.GetValues<CompletionMode>();
     public IReadOnlyList<AssistantRunMode> AssistantRunModes { get; } = Enum.GetValues<AssistantRunMode>();
@@ -106,7 +106,7 @@ public partial class MainViewModel : ObservableObject
             if (SelectedGame is null || value is null || value == SelectedGame.Config.AdapterId) return;
             SelectedGame.Config.AdapterId = value;
             if (!SourceAssistantService.Supports(value)) SelectedGame.Config.ToolRunMode = AssistantRunMode.Binary;
-            SelectedGame.Config.ToolName = value switch { "bettergi" => "BetterGI", "march7th" => "March7thAssistant", "okww" => "OK-WW", _ => "自定义助手" };
+            SelectedGame.Config.ToolName = value switch { "bettergi" => "BetterGI", "march7th" => "March7thAssistant", "okww" => "OK-WW", "zzz" => "绝区零一条龙", _ => "自定义助手" };
             SelectedGame.Config.Daily.Trigger = value == "generic" ? TriggerMode.Manual : TriggerMode.VerifiedCommand;
             SelectedGame.Config.Daily.Completion = value == "generic" ? CompletionMode.Manual : CompletionMode.AdapterEvidence;
             ConfigurationSuggestions.Apply(SelectedGame.Config);

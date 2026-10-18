@@ -13,6 +13,8 @@ public sealed class AdapterIntegrationTests
     [InlineData("bettergi", "BetterGI.exe")]
     [InlineData("march7th", "March7th Launcher.exe")]
     [InlineData("okww", "ok-ww.exe")]
+    [InlineData("zzz", "OneDragon-RuntimeLauncher.exe")]
+    [InlineData("zzz", "OneDragon-Launcher.exe")]
     [InlineData("generic", "Helper.exe")]
     public async Task OpeningAssistantDoesNotRequireDailyConfiguration(string adapterId, string executable)
     {

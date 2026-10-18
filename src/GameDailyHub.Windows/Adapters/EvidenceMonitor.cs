@@ -54,6 +54,12 @@ public sealed class EvidenceMonitor
                 if (Regex.IsMatch(line, @"(?:^|:)Daily Task Completed\s*$", RegexOptions.None, TimeSpan.FromMilliseconds(100))) { _started = true; _ended = true; }
                 if (Regex.IsMatch(line, @"\b(?:ERROR|CRITICAL)\b", RegexOptions.None, TimeSpan.FromMilliseconds(100)) || line.Contains("Traceback (most recent call last)") || line.Contains("exception stopped") || line.Contains("Task Failed") || line.Contains("TaskDisabledException") || line.Contains("NightmareNestTask Failed") || line.Contains("GardenTask Failed") || line.Contains("MergeEchoTask Failed") || line.Contains("can not battle pass")) _failed = true;
                 break;
+            case "zzz":
+                // Only the top-level operation can end the batch; child operations also report success.
+                if (Match(line, @"指令\[\s*一条龙\s*\] 节点 ")) _started = true;
+                if (Match(line, @"指令\[\s*一条龙\s*\] 执行成功 返回状态 全部结束\s*$")) { _started = true; _ended = true; }
+                if (Match(line, @"\[(?:ERROR|CRITICAL)\]") || line.Contains("Traceback (most recent call last)") || line.Contains("执行失败 返回状态")) _failed = true;
+                break;
         }
     }
     public AdapterResult? Evaluate(bool exited, int? exitCode, bool discontinuity = false)
@@ -70,6 +76,11 @@ public sealed class EvidenceMonitor
             if (_adapter == "bettergi" && _profile.Completion == CompletionMode.AdapterEvidence)
                 return new(RunState.Unknown, "BetterGI 已报告流程结束；其结束事件无法保证全部子任务成功，请核对任务日志", true, exitCode, evidence);
             if (_adapter == "march7th" && !exited) return null;
+            if (_adapter == "zzz" && _profile.Completion == CompletionMode.AdapterEvidence)
+            {
+                if (!exited) return null;
+                return new(RunState.Unknown, "绝区零一条龙已报告流程结束，请核对各子任务结果后确认", true, exitCode, evidence);
+            }
             return new(RunState.Success, "已取得本轮日常完成证据", true, exitCode, evidence);
         }
         if (exited) return new(RunState.Unknown, "助手已退出，未取得完整的任务完成证据", true, exitCode, evidence);

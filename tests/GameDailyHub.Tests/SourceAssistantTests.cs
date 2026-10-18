@@ -26,12 +26,18 @@ public sealed class SourceAssistantTests : IDisposable
         File.Copy(Path.Combine(AppContext.BaseDirectory, "GameDailyHub.Tests.exe"), Sources.PythonPath(game));
         File.WriteAllText(Path.Combine(directory, "app.py"), "");
         File.WriteAllText(Path.Combine(directory, "main.py"), "");
+        foreach (var gui in new[] { true, false })
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(Sources.EntryPath(game, gui))!);
+            File.WriteAllText(Sources.EntryPath(game, gui), "");
+        }
         File.WriteAllText(Path.Combine(directory, "config.yaml"), "after_finish: None\npause_after_success: false\nexit_after_failure: true\nscheduled_run_enable: false\nscheduled_tasks: []\n");
         return game;
     }
     [Theory]
     [InlineData("march7th", "March7thAssistant")]
     [InlineData("okww", "ok-wuthering-waves")]
+    [InlineData("zzz", "ZenlessZoneZero-OneDragon")]
     public async Task SourceSettingsPersistAndExplicitDirectoryOverridesDataRoot(string adapter, string folder)
     {
         Directory.CreateDirectory(_root);
@@ -45,10 +51,12 @@ public sealed class SourceAssistantTests : IDisposable
         Assert.Equal(game.ToolSourceDirectory, Sources.DirectoryFor(loaded));
         Assert.Equal(AssistantRunMode.Binary, JsonSerializer.Deserialize<GameConfig>("{}")!.ToolRunMode);
     }
-    [Fact]
-    public async Task SourceDailyUsesCliEntryAndSourceWorkingDirectoryThroughQueue()
+    [Theory]
+    [InlineData("march7th", "main.py")]
+    [InlineData("zzz", "zzz_application_launcher.py")]
+    public async Task SourceDailyUsesCliEntryAndSourceWorkingDirectoryThroughQueue(string adapter, string entry)
     {
-        var game = CreateSource("march7th");
+        var game = CreateSource(adapter);
         game.ToolPath = Path.Combine(_root, "unused-binary.exe");
         game.Daily.Trigger = TriggerMode.CustomCommand;
         game.Daily.Arguments = "fixture exit";
@@ -62,12 +70,18 @@ public sealed class SourceAssistantTests : IDisposable
             .RunAsync([new(new() { GameId = game.Id }, game)], timeout.Token);
         Assert.Equal(1, batch.SuccessCount);
         var evidence = Assert.Single(batch.Attempts).Evidence;
-        Assert.Contains("ENTRY=main.py", evidence);
+        Assert.Contains("ENTRY=" + entry, evidence);
         Assert.Contains("CWD=" + Sources.DirectoryFor(game), evidence);
+        if (adapter == "zzz")
+        {
+            Assert.Contains("PYTHONPATH=" + Path.Combine(Sources.DirectoryFor(game), "src"), evidence);
+            Assert.Contains("PYTHONIOENCODING=utf-8", evidence);
+        }
     }
     [Theory]
     [InlineData("march7th", "app.py")]
     [InlineData("okww", "main.py")]
+    [InlineData("zzz", "app.py")]
     public async Task GuiReusesSourceInstanceAndMaintenanceRefusesRunningHelper(string adapter, string entry)
     {
         var game = CreateSource(adapter);

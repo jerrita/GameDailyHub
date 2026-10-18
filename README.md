@@ -1,6 +1,6 @@
 # GameDailyHub
 
-原生 WinUI 3 二游启动与一条龙管理器。支持原神 / BetterGI、崩坏：星穹铁道 / March7thAssistant、鸣潮 / OK-WW，以及通过配置扩展的其他游戏。
+原生 WinUI 3 二游启动与一条龙管理器。支持原神 / BetterGI、崩坏：星穹铁道 / March7thAssistant、鸣潮 / OK-WW、绝区零 / ZenlessZoneZero-OneDragon，以及通过配置扩展的其他游戏。
 
 ## 运行
 
@@ -21,7 +21,7 @@
 
 配置项的取舍见 [配置精简决策](docs/SETTINGS.md)。
 
-## 配置三款助手
+## 配置助手
 
 先在各助手内完成游戏路径、登录和任务内容配置，再配置 Hub。Hub 默认只读取第三方配置进行校验。
 
@@ -30,6 +30,7 @@
 | 原神 | `BetterGI.exe` | 可留空 | `--startOneDragon "配置名称"` |
 | 崩坏：星穹铁道 | `March7th Assistant.exe` | `March7th Launcher.exe` | `main`；命名工作流使用 `--workflow-name "名称"` |
 | 鸣潮 | 本机 `ok-ww.exe` | 按实际安装情况选择 | `-t 1` |
+| 绝区零 | `OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe` | 可留空 | 安装版 `--onedragon`；源码调用官方应用入口 |
 
 助手路径留空时，依次检查 `%LocalAppData%/Programs`、`%ProgramFiles%`、`%ProgramFiles(x86)%`、`%LocalAppData%` 和 Hub 所在目录下的 `BetterGI/BetterGI.exe`、`March7thAssistant/March7th Assistant.exe`、`ok-ww/ok-ww.exe`。找到后显示并保存实际路径；手动填写的路径始终优先。March7th 为解压使用，可放在 Hub 同目录的 `March7thAssistant` 文件夹，或手动选择。未找到时提示选择已安装的助手；通用助手需手动指定路径。
 
@@ -37,14 +38,14 @@
 
 ### 源码运行
 
-March7thAssistant、OK-WW 可在「游戏」选择安装版或源码运行；BetterGI 使用安装版。源码位置可手动填写，留空分别使用 `%LocalAppData%/GameDailyHub/assistants/March7thAssistant`、`%LocalAppData%/GameDailyHub/assistants/ok-wuthering-waves`，跟随 Hub 的程序数据目录。
+March7thAssistant、OK-WW、绝区零一条龙可在「游戏」选择安装版或源码运行；BetterGI 使用安装版。源码位置可手动填写，留空分别使用 `%LocalAppData%/GameDailyHub/assistants/March7thAssistant`、`%LocalAppData%/GameDailyHub/assistants/ok-wuthering-waves`、`%LocalAppData%/GameDailyHub/assistants/ZenlessZoneZero-OneDragon`，跟随 Hub 的程序数据目录。
 
 - **克隆 / 更新代码**：从官方 Git 仓库使用 `--depth 1` 浅克隆（含子模块）；已有仓库使用 `git pull --ff-only` 更新，并初始化子模块。非空且未包含 Git 仓库的目录会提示重新选择。
-- **安装环境**：使用已安装的 uv 创建源码目录内的 `.venv`，按 Python 3.12 安装依赖。March7th 优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
+- **安装环境**：使用已安装的 uv 创建源码目录内的 `.venv`。March7th 与 OK-WW 使用 Python 3.12，绝区零一条龙使用 Python 3.11。March7th 与绝区零一条龙优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
 
 操作进度写入运行日志，可取消当前源码操作。代码和环境准备完成后，使用卡片上的「助手」按钮打开界面。
 
-uv、Git 须已加入 PATH。源码模式的「启动助手」使用虚拟环境运行 March7th 的 `app.py` 或 OK-WW 的 `main.py`；「自动助手」运行 `main.py` 并沿用日常参数、配置校验和结果判定。工作目录固定为源码目录；助手运行期间须先关闭再更新代码或环境。
+uv、Git 须已加入 PATH。源码模式的「启动助手」使用虚拟环境运行 March7th 的 `app.py` 或 OK-WW 的 `main.py`；这两款助手的「自动助手」运行 `main.py` 并沿用日常参数、配置校验和结果判定。绝区零使用下文所列官方入口。工作目录固定为源码目录；助手运行期间须先关闭再更新代码或环境。
 
 ### BetterGI
 
@@ -83,6 +84,16 @@ scheduled_tasks: []
 默认日志为 `logs/ok-ww.log`；安装器/运行目录不同请填写真实路径。检测本轮 `Daily Task Completed`，并检查任务异常及可选任务失败记录。助手退出本身不会被判为成功。
 
 自定义 `-t 1 -e` 可要求任务结束后退出，**该参数在框架中还会关闭游戏**。默认参数不携带 `-e`。
+
+### 绝区零一条龙
+
+接入基线为 2026-10-18 核查的官方 main 提交 `bdafa6e3`。新配置包含绝区零卡片；已有配置可在「游戏」新增游戏并选择「绝区零一条龙」。先在助手内配置游戏路径、账号、模型与默认应用组。
+
+安装版选择 `OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe`，留空时查找默认安装根目录下的 `ZenlessZoneZero-OneDragon` 文件夹。普通启动使用空参数，自动日常使用 `--onedragon`。官方安装版启动器会自行提权；为保持任务进程归属，安装版日常要求 Hub 已以管理员权限运行。普通权限下可选择源码模式。
+
+源码界面入口为 `src/zzz_od/gui/app.py`，日常入口为 `src/zzz_od/application/zzz_application_launcher.py`，默认日常参数为空，使用助手已启用的实例和应用组。Hub 设置 `PYTHONPATH=<源码目录>/src`，使用 `.venv/Scripts/python.exe` 直接运行。需要限定账号实例时，可在自定义参数填写 `--instance 1,2`；安装版需同时保留 `--onedragon`。
+
+内置判定读取本轮进程输出：子任务失败、异常退出优先判失败；顶层一条龙报告「全部结束」且进程正常退出后，等待人工确认。助手的应用组会继续处理失败的子任务，因此最终流程结束仍需核对。缺少结束证据时同样等待人工确认。Hub 默认不传关闭游戏或电源操作参数。助手配置导入导出当前包含 Hub 日常设置，第三方配置在助手内管理。
 
 ## 完成、安全与人工确认
 
@@ -132,7 +143,7 @@ scheduled_tasks: []
 
 ## 扩展
 
-核心接口为 `IToolAdapter`，Windows 内置 BetterGI、March7th、OK-WW、Generic 四种实现。新增游戏可直接选择通用适配器，配置命令加日志规则或人工判定。专用工具可新增适配器并注册到 `AdapterRegistry`，复用现有界面、持久化和队列引擎。
+核心接口为 `IToolAdapter`，Windows 内置 BetterGI、March7th、OK-WW、绝区零一条龙、Generic 五种实现。新增游戏可直接选择通用适配器，配置命令加日志规则或人工判定。专用工具可新增适配器并注册到 `AdapterRegistry`，复用现有界面、持久化和队列引擎。
 
 源码结构：`src/GameDailyHub.Core`（模型、契约、编排），`src/GameDailyHub.Windows`（适配器、进程、配置、日志），`src/GameDailyHub.App`（WinUI / MVVM），`tests/GameDailyHub.Tests`（测试）。
 

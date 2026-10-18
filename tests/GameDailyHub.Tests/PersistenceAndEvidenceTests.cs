@@ -24,7 +24,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var store = new ConfigurationStore(_directory); var config = AppConfig.CreateDefault();
         config.Games[0].Normal.Arguments = "ordinary"; config.Games[0].Daily.Arguments = "automation";
         await store.SaveAsync(config); var loaded = await new ConfigurationStore(_directory).LoadAsync();
-        Assert.Equal("ordinary", loaded.Games[0].Normal.Arguments); Assert.Equal("automation", loaded.Games[0].Daily.Arguments); Assert.Equal(3, loaded.Tasks.Count);
+        Assert.Equal("ordinary", loaded.Games[0].Normal.Arguments); Assert.Equal("automation", loaded.Games[0].Daily.Arguments); Assert.Equal(4, loaded.Tasks.Count);
     }
     [Theory]
     [InlineData(LaunchTarget.Assistant)]
@@ -64,6 +64,8 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
     [InlineData("bettergi", "BetterGI", "BetterGI.exe")]
     [InlineData("march7th", "March7thAssistant", "March7th Assistant.exe")]
     [InlineData("okww", "ok-ww", "ok-ww.exe")]
+    [InlineData("zzz", "ZenlessZoneZero-OneDragon", "OneDragon-RuntimeLauncher.exe")]
+    [InlineData("zzz", "ZenlessZoneZero-OneDragon", "OneDragon-Launcher.exe")]
     public void BlankAssistantPathUsesExistingDefault(string adapter, string folder, string executable)
     {
         var directory = Path.Combine(_directory, folder);
@@ -230,7 +232,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
     [Fact]
     public void ExitZeroIsNeverSufficientEvidence()
     {
-        foreach (var adapter in new[] { "bettergi", "march7th", "okww" }) Assert.Equal(RunState.Unknown, new EvidenceMonitor(adapter, new(), 5).Evaluate(true, 0)!.State);
+        foreach (var adapter in new[] { "bettergi", "march7th", "okww", "zzz" }) Assert.Equal(RunState.Unknown, new EvidenceMonitor(adapter, new(), 5).Evaluate(true, 0)!.State);
     }
     [Fact]
     public void BetterGiEndAloneRequiresConfirmationAndLaterFailureWins()

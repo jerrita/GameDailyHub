@@ -43,6 +43,11 @@ public static class ConfigurationSuggestions
                 @"Star Rail\Games\StarRail.exe"
             ],
             "okww" => [@"Wuthering Waves\Wuthering Waves Game\Wuthering Waves.exe"],
+            "zzz" => [
+                @"miHoYo Launcher\games\ZenlessZoneZero Game\ZenlessZoneZero.exe",
+                @"HoYoPlay\games\ZenlessZoneZero Game\ZenlessZoneZero.exe",
+                @"ZenlessZoneZero\ZenlessZoneZero Game\ZenlessZoneZero.exe"
+            ],
             _ => []
         };
         if (relativePaths.Length == 0) yield break;
@@ -62,14 +67,15 @@ public static class ConfigurationSuggestions
 
     public static IEnumerable<string> DefaultToolPaths(string adapterId, IEnumerable<string>? installationRoots = null)
     {
-        var (folder, executable) = adapterId switch
+        var (folder, executables) = adapterId switch
         {
-            "bettergi" => ("BetterGI", "BetterGI.exe"),
-            "march7th" => ("March7thAssistant", "March7th Assistant.exe"),
-            "okww" => ("ok-ww", "ok-ww.exe"),
-            _ => ("", "")
+            "bettergi" => ("BetterGI", new[] { "BetterGI.exe" }),
+            "march7th" => ("March7thAssistant", new[] { "March7th Assistant.exe" }),
+            "okww" => ("ok-ww", new[] { "ok-ww.exe" }),
+            "zzz" => ("ZenlessZoneZero-OneDragon", new[] { "OneDragon-RuntimeLauncher.exe", "OneDragon-Launcher.exe" }),
+            _ => ("", Array.Empty<string>())
         };
-        if (executable.Length == 0) yield break;
+        if (executables.Length == 0) yield break;
 
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         var roots = installationRoots ?? new[]
@@ -81,6 +87,7 @@ public static class ConfigurationSuggestions
             AppContext.BaseDirectory
         };
         foreach (var root in roots.Where(r => !string.IsNullOrWhiteSpace(r)).Distinct(StringComparer.OrdinalIgnoreCase))
-            yield return Path.Combine(root, folder, executable);
+            foreach (var executable in executables)
+                yield return Path.Combine(root, folder, executable);
     }
 }

@@ -10,7 +10,7 @@ public partial class GameCardViewModel : ObservableObject
     public GameConfig Config { get; }
     public string Name => Config.Name;
     public string ToolName => Config.ToolName;
-    public string Glyph => Config.AdapterId switch { "bettergi" => "✦", "march7th" => "✧", "okww" => "◈", _ => "◇" };
+    public string Glyph => Config.AdapterId switch { "bettergi" => "✦", "march7th" => "✧", "okww" => "◈", "zzz" => "◎", _ => "◇" };
     public const string ReadyStatus = "已就绪";
     private string _processStatus = default!;
     public string ProcessStatus { get => _processStatus; set { SetProperty(ref _processStatus, value); } }

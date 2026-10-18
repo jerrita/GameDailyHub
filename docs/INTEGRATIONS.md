@@ -39,6 +39,17 @@
 
 该版本框架在任务执行返回后发送完成信号；异常与手动停止走不同分支，进程不一定退出。DailyTask 的最终日志位于其任务流程末尾；部分可选任务失败被内部捕获，Hub 对已知失败优先判失败。`-e` 对应的退出行为还包括关闭游戏，所以默认只配置 `-t 1`。
 
+## 绝区零一条龙
+
+2026-10-18 核查官方 main 提交 `bdafa6e3e91e537f279dcaaf7514ef1314519893`：
+
+- [启动器参数与提权](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/launcher/exe_launcher.py)：空参数打开界面，`-o/--onedragon` 执行日常；未以管理员运行时会创建提权进程并退出。因此 Hub 在普通权限下拦截安装版队列执行，提供源码运行方式。
+- [官方应用入口](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/zzz_od/application/zzz_application_launcher.py) 与 [参数解析](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/launcher/launcher_base.py)：源码日常入口直接运行一条龙，接受 `--instance`；无需 `--onedragon`。界面入口为 `src/zzz_od/gui/app.py`。
+- [Python 版本与依赖](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/pyproject.toml)：要求 Python `>=3.11.9,<3.12`。Hub 使用 `uv sync --python 3.11 --no-dev` 和源码目录内 `.venv`，启动时设置 `PYTHONPATH=src`。
+- [应用组执行](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/base/operation/application/group_application.py) 会继续处理失败的子任务；[操作日志](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/base/operation/operation.py) 包含子任务与顶层完成文本。Hub 仅将本轮进程输出中的顶层「一条龙 执行成功 返回状态 全部结束」视为流程结束，等待正常退出后要求人工确认；失败证据优先。
+
+默认参数不附带关闭游戏、关机、休眠或睡眠操作。停止、超时和跳过沿用现有 Job Object 清理。助手配置导入导出仅迁移 Hub 日常设置，第三方配置在助手内管理。真实游戏与安装版提权运行尚需本机联调。
+
 ## 共同策略
 
 源码模式使用 [March7th 官方 uv 工作流与 Python 入口](https://github.com/moesnow/March7thAssistant/blob/main/README_EN.md)、[OK-WW main.py](https://github.com/ok-oldking/ok-wuthering-waves/blob/master/main.py) 及其 `requirements.txt`。环境管理遵循 [uv 虚拟环境文档](https://docs.astral.sh/uv/pip/environments/)，包索引通过命令参数指定[清华镜像](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)，仅作用于该次安装。March7th 的 `uv sync` 同时覆盖项目中名为 `pypi` 的索引。启动使用 uv 管理的 `.venv/Scripts/python.exe`，使日常进程继续直接归属现有 Job Object。

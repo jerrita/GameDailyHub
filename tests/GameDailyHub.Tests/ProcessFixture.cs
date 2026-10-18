@@ -10,6 +10,8 @@ internal static class ProcessFixture
         {
             Console.WriteLine("ENTRY=" + Path.GetFileName(args[1]));
             Console.WriteLine("CWD=" + Environment.CurrentDirectory);
+            Console.WriteLine("PYTHONPATH=" + Environment.GetEnvironmentVariable("PYTHONPATH"));
+            Console.WriteLine("PYTHONIOENCODING=" + Environment.GetEnvironmentVariable("PYTHONIOENCODING"));
             File.WriteAllText(Path.Combine(Environment.CurrentDirectory, "fixture-entry.txt"), Path.GetFileName(args[1]));
             args = ["fixture", .. args.Skip(2)];
         }

@@ -1,3 +1,4 @@
+using System.Security.Principal;
 using System.Text.RegularExpressions;
 using GameDailyHub.Core.Adapters;
 using GameDailyHub.Core.Models;
@@ -11,7 +12,7 @@ public sealed class AdapterRegistry : IAdapterRegistry
     private readonly Dictionary<string, IToolAdapter> _adapters;
     public AdapterRegistry(ProcessService processes, SourceAssistantService? sources = null)
     {
-        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new GenericAdapter(processes)];
+        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new ZzzAdapter(processes, sources), new GenericAdapter(processes)];
         _adapters = adapters.ToDictionary(a => a.Capabilities.Id);
     }
     public IToolAdapter Get(string id) => _adapters.TryGetValue(id, out var adapter) ? adapter : throw new InvalidOperationException("未知适配器：" + id);
@@ -56,6 +57,7 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
     protected SourceAssistantService Sources { get; } = sources ?? new(processes, ConfigurationStore.DefaultRoot);
     public abstract AdapterCapabilities Capabilities { get; }
     protected abstract string VerifiedArguments(GameConfig game);
+    protected virtual IReadOnlyDictionary<string, string>? DailyEnvironment => null;
     protected virtual void ValidateTool(GameConfig game, bool daily, List<string> errors) { }
     public Task<ValidationResult> ValidateAsync(GameConfig game, bool daily, CancellationToken cancellationToken)
     {
@@ -78,7 +80,7 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
             var name = Path.GetFileName(game.NormalPath);
             var isAssistant = game.Normal.Target == LaunchTarget.Assistant
                 || new[] { game.ToolPath, game.ToolGuiPath }.Any(p => !string.IsNullOrWhiteSpace(p) && string.Equals(ProcessService.Normalize(p), ProcessService.Normalize(game.NormalPath), StringComparison.OrdinalIgnoreCase))
-                || new[] { "BetterGI.exe", "March7th Assistant.exe", "March7th Launcher.exe", "ok-ww.exe" }.Contains(name, StringComparer.OrdinalIgnoreCase);
+                || new[] { "BetterGI.exe", "March7th Assistant.exe", "March7th Launcher.exe", "ok-ww.exe", "OneDragon-Launcher.exe", "OneDragon-RuntimeLauncher.exe" }.Contains(name, StringComparer.OrdinalIgnoreCase);
             if (!source && name.Equals("March7th Assistant.exe", StringComparison.OrdinalIgnoreCase)) errors.Add("March7th Assistant.exe 默认执行任务，普通启动必须选择 March7th Launcher.exe");
             if (isAssistant)
             {
@@ -134,7 +136,7 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
         try
         {
             session = source ? await Sources.StartDailyAsync(game, manual, arguments, token)
-                : Processes.StartOwned(pathToStart, arguments, game.Daily.WorkingDirectory);
+                : Processes.StartOwned(pathToStart, arguments, game.Daily.WorkingDirectory, DailyEnvironment);
             token.ThrowIfCancellationRequested();
             log($"已创建任务进程 PID={session.Identity.Pid}，任务参数={arguments}");
             return new ProcessAdapterRun(runId, game, session, tail, log);
@@ -245,6 +247,30 @@ public sealed class OkWwAdapter(ProcessService processes, SourceAssistantService
     protected override void ValidateTool(GameConfig game, bool daily, List<string> errors)
     {
         if (daily && game.Daily.Trigger == TriggerMode.CustomCommand && !CommandArguments.Parse(game.Daily.Arguments).Any(a => a is "-t" or "--task")) errors.Add("OK-WW 自动任务需要核实 -t/--task 任务选择参数");
+    }
+}
+
+public sealed class ZzzAdapter(ProcessService processes, SourceAssistantService? sources = null) : ProcessToolAdapter(processes, sources)
+{
+    protected override IReadOnlyDictionary<string, string> DailyEnvironment { get; } = new Dictionary<string, string> { ["PYTHONIOENCODING"] = "utf-8" };
+    public override AdapterCapabilities Capabilities { get; } = new("zzz", "main bdafa6e3 (2026-10-18)", "https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3e91e537f279dcaaf7514ef1314519893/src/one_dragon/launcher/exe_launcher.py", true);
+    protected override string VerifiedArguments(GameConfig game) => game.ToolRunMode == AssistantRunMode.Source ? "" : "--onedragon";
+    protected override void ValidateTool(GameConfig game, bool daily, List<string> errors)
+    {
+        if (game.ToolRunMode == AssistantRunMode.Source) return;
+        if (!daily && game.Normal.Target != LaunchTarget.Assistant) return;
+        var path = !daily ? game.NormalPath
+            : game.Daily.Trigger == TriggerMode.Manual && !string.IsNullOrWhiteSpace(game.ToolGuiPath) ? game.ToolGuiPath : game.ToolPath;
+        if (!new[] { "OneDragon-Launcher.exe", "OneDragon-RuntimeLauncher.exe" }.Contains(Path.GetFileName(path), StringComparer.OrdinalIgnoreCase))
+            errors.Add("绝区零一条龙请选择 OneDragon-Launcher.exe 或 OneDragon-RuntimeLauncher.exe");
+        if (daily)
+        {
+            using var identity = WindowsIdentity.GetCurrent();
+            if (!new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator))
+                errors.Add("安装版一条龙会自行提权，请使用源码模式运行日常，或以管理员权限打开 Hub 后再运行");
+            if (game.Daily.Trigger == TriggerMode.CustomCommand && !CommandArguments.Parse(game.Daily.Arguments).Any(a => a is "-o" or "--onedragon"))
+                errors.Add("安装版一条龙自动任务需要 -o/--onedragon 参数");
+        }
     }
 }
 

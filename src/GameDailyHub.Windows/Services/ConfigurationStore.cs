@@ -92,7 +92,7 @@ public sealed class ConfigurationStore(string root)
             throw new InvalidDataException("游戏或任务 ID 重复");
         foreach (var g in config.Games)
         {
-            if (g.Id == Guid.Empty || string.IsNullOrWhiteSpace(g.Name) || g.Normal is null || g.Daily is null || !new[] { "bettergi", "march7th", "okww", "generic" }.Contains(g.AdapterId))
+            if (g.Id == Guid.Empty || string.IsNullOrWhiteSpace(g.Name) || g.Normal is null || g.Daily is null || !new[] { "bettergi", "march7th", "okww", "zzz", "generic" }.Contains(g.AdapterId))
                 throw new InvalidDataException("游戏信息不完整或适配器无效");
             if (new[] { g.GamePath, g.LauncherPath, g.ToolPath, g.ToolGuiPath, g.ToolConfigPath, g.ToolSourceDirectory, g.Normal.Arguments, g.Normal.WorkingDirectory, g.Daily.Arguments, g.Daily.ProfileName, g.Daily.LogPath, g.Daily.WorkingDirectory }.Any(s => s is null))
                 throw new InvalidDataException("路径及参数须为字符串");

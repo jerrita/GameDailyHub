@@ -3,17 +3,18 @@ using GameDailyHub.Core.Models;
 
 namespace GameDailyHub.Windows.Services;
 
-public sealed record SourceAssistantDefinition(string Folder, string Repository, string GuiEntry, string DailyEntry);
+public sealed record SourceAssistantDefinition(string Folder, string Repository, string GuiEntry, string DailyEntry, string PythonVersion = "3.12");
 
 public sealed class SourceAssistantService(ProcessService processes, string dataRoot)
 {
     public const string PackageIndex = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple";
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new(StringComparer.OrdinalIgnoreCase);
-    public static bool Supports(string adapterId) => adapterId is "march7th" or "okww";
+    public static bool Supports(string adapterId) => adapterId is "march7th" or "okww" or "zzz";
     public static SourceAssistantDefinition Definition(string adapterId) => adapterId switch
     {
         "march7th" => new("March7thAssistant", "https://github.com/moesnow/March7thAssistant.git", "app.py", "main.py"),
         "okww" => new("ok-wuthering-waves", "https://github.com/ok-oldking/ok-wuthering-waves.git", "main.py", "main.py"),
+        "zzz" => new("ZenlessZoneZero-OneDragon", "https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon.git", "src/zzz_od/gui/app.py", "src/zzz_od/application/zzz_application_launcher.py", "3.11"),
         _ => throw new InvalidOperationException("该助手暂不支持源码运行")
     };
     public string DirectoryFor(GameConfig game) => Path.TrimEndingDirectorySeparator(string.IsNullOrWhiteSpace(game.ToolSourceDirectory)
@@ -31,6 +32,9 @@ public sealed class SourceAssistantService(ProcessService processes, string data
     }
     public string Arguments(GameConfig game, bool gui, string arguments) => "-u " + CommandArguments.Quote(EntryPath(game, gui))
         + (string.IsNullOrWhiteSpace(arguments) ? "" : " " + arguments);
+    private IReadOnlyDictionary<string, string>? RuntimeEnvironment(GameConfig game) => game.AdapterId == "zzz"
+        ? new Dictionary<string, string> { ["PYTHONPATH"] = Path.Combine(DirectoryFor(game), "src"), ["PYTHONIOENCODING"] = "utf-8" }
+        : null;
     public async Task<LaunchResult> LaunchGuiAsync(GameConfig game, CancellationToken token)
     {
         var gate = Gate(game);
@@ -38,7 +42,7 @@ public sealed class SourceAssistantService(ProcessService processes, string data
         try
         {
             EnsureReady(game, true);
-            return await processes.LaunchNormalAsync(PythonPath(game), Arguments(game, true, ""), DirectoryFor(game), token, createNoWindow: true);
+            return await processes.LaunchNormalAsync(PythonPath(game), Arguments(game, true, ""), DirectoryFor(game), token, createNoWindow: true, environment: RuntimeEnvironment(game));
         }
         finally { gate.Release(); }
     }
@@ -51,7 +55,7 @@ public sealed class SourceAssistantService(ProcessService processes, string data
             EnsureReady(game, gui);
             EnsureStopped(game);
             token.ThrowIfCancellationRequested();
-            return processes.StartOwned(PythonPath(game), Arguments(game, gui, arguments), DirectoryFor(game));
+            return processes.StartOwned(PythonPath(game), Arguments(game, gui, arguments), DirectoryFor(game), RuntimeEnvironment(game));
         }
         finally { gate.Release(); }
     }
@@ -85,13 +89,13 @@ public sealed class SourceAssistantService(ProcessService processes, string data
             {
                 if (!File.Exists(EntryPath(game, false))) throw new InvalidOperationException("源码入口不存在，请先克隆代码或选择源码目录");
                 var uv = FindExecutable("uv");
-                if (game.AdapterId == "march7th" && File.Exists(Path.Combine(directory, "pyproject.toml")))
-                    await RunAsync(uv, ["sync", "--python", "3.12", "--no-dev", "--default-index", PackageIndex, "--index", "pypi=" + PackageIndex], directory, log, token);
+                if (game.AdapterId is "march7th" or "zzz" && File.Exists(Path.Combine(directory, "pyproject.toml")))
+                    await RunAsync(uv, ["sync", "--python", definition.PythonVersion, "--no-dev", "--default-index", PackageIndex, "--index", "pypi=" + PackageIndex], directory, log, token);
                 else
                 {
                     var requirements = Path.Combine(directory, "requirements.txt");
                     if (!File.Exists(requirements)) throw new InvalidOperationException("源码目录缺少 requirements.txt");
-                    if (!File.Exists(PythonPath(game))) await RunAsync(uv, ["venv", "--python", "3.12", ".venv"], directory, log, token);
+                    if (!File.Exists(PythonPath(game))) await RunAsync(uv, ["venv", "--python", definition.PythonVersion, ".venv"], directory, log, token);
                     await RunAsync(uv, ["pip", "install", "--python", PythonPath(game), "--default-index", PackageIndex, "-r", requirements], directory, log, token);
                 }
             }
