@@ -33,7 +33,7 @@ public sealed class SourceAssistantService(ProcessService processes, string data
     }
     public string Arguments(GameConfig game, bool gui, string arguments) => "-u " + CommandArguments.Quote(EntryPath(game, gui))
         + (string.IsNullOrWhiteSpace(arguments) ? "" : " " + arguments);
-    private IReadOnlyDictionary<string, string> RuntimeEnvironment(GameConfig game)
+    private Dictionary<string, string> RuntimeEnvironment(GameConfig game)
     {
         var environment = new Dictionary<string, string> { ["PYTHONIOENCODING"] = "utf-8" };
         if (game.AdapterId == "zzz") environment["PYTHONPATH"] = Path.Combine(DirectoryFor(game), "src");
