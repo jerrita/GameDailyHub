@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using GameDailyHub.Core.Models;
+using Microsoft.Win32;
 
 namespace GameDailyHub.Windows.Services;
 
@@ -92,6 +93,8 @@ public sealed class SourceAssistantService(ProcessService processes, string data
             {
                 if (!File.Exists(EntryPath(game, false))) throw new InvalidOperationException("源码入口不存在，请先克隆代码或选择源码目录");
                 var uv = FindExecutable("uv");
+                token.ThrowIfCancellationRequested();
+                EnsureLongPathsEnabled(log);
                 if (game.AdapterId is "march7th" or "zzz" && File.Exists(Path.Combine(directory, "pyproject.toml")))
                     await RunAsync(uv, ["sync", "--python", definition.PythonVersion, "--no-dev", "--default-index", PackageIndex, "--index", "pypi=" + PackageIndex], directory, log, token);
                 else
@@ -104,6 +107,27 @@ public sealed class SourceAssistantService(ProcessService processes, string data
             }
         }
         finally { gate.Release(); }
+    }
+    private static void EnsureLongPathsEnabled(Action<string> log)
+    {
+        const string keyPath = @"SYSTEM\CurrentControlSet\Control\FileSystem";
+        const string valueName = "LongPathsEnabled";
+        try
+        {
+            using var machine = RegistryKey.OpenBaseKey(RegistryHive.LocalMachine, RegistryView.Registry64);
+            using var current = machine.OpenSubKey(keyPath);
+            if (current?.GetValue(valueName) is int value && value == 1) return;
+            using var writable = machine.OpenSubKey(keyPath, writable: true)
+                ?? throw new InvalidOperationException("找不到 Windows 文件系统设置，无法启用长路径支持");
+            writable.SetValue(valueName, 1, RegistryValueKind.DWord);
+            if (writable.GetValue(valueName) is not int enabled || enabled != 1)
+                throw new InvalidOperationException("Windows 长路径设置未生效，请检查系统策略后重试");
+        }
+        catch (Exception e) when (e is UnauthorizedAccessException or System.Security.SecurityException)
+        {
+            throw new InvalidOperationException("启用 Windows 长路径支持失败，请以管理员身份运行 GameDailyHub 后重试", e);
+        }
+        log("已启用 Windows 长路径支持");
     }
     private SemaphoreSlim Gate(GameConfig game) => Gates.GetOrAdd(DirectoryFor(game), _ => new(1));
     private void EnsureReady(GameConfig game, bool gui)

@@ -41,7 +41,7 @@
 March7thAssistant、OK-WW、绝区零一条龙可在「游戏」选择安装版或源码运行；BetterGI 使用安装版。源码位置可手动填写，留空分别使用 `%LocalAppData%/GameDailyHub/assistants/March7thAssistant`、`%LocalAppData%/GameDailyHub/assistants/ok-wuthering-waves`、`%LocalAppData%/GameDailyHub/assistants/ZenlessZoneZero-OneDragon`，跟随 Hub 的程序数据目录。
 
 - **克隆 / 更新代码**：从官方 Git 仓库使用 `--depth 1` 浅克隆（含子模块）；已有仓库使用 `git pull --ff-only` 更新，并初始化子模块。非空且未包含 Git 仓库的目录会提示重新选择。
-- **安装环境**：使用已安装的 uv 创建源码目录内的 `.venv`。March7th 与 OK-WW 使用 Python 3.12，绝区零一条龙使用 Python 3.11。March7th 与绝区零一条龙优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
+- **安装环境**：安装前自动检查并启用 Windows 长路径支持，配置失败时停止安装并显示原因。使用已安装的 uv 创建源码目录内的 `.venv`。March7th 与 OK-WW 使用 Python 3.12，绝区零一条龙使用 Python 3.11。March7th 与绝区零一条龙优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
 
 操作进度写入运行日志，可取消当前源码操作。代码和环境准备完成后，使用卡片上的「助手」按钮打开界面。
 
