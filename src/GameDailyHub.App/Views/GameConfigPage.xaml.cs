@@ -47,16 +47,6 @@ public sealed partial class GameConfigPage : Page
         // Replace the selection notification so classic bindings re-read the changed path.
         ViewModel.SelectedGame = null; ViewModel.SelectedGame = game; game.Refresh();
     }
-    private async void ImportAssistant_Click(object sender, RoutedEventArgs args)
-    {
-        var path = FileDialogService.Choose(_windowHandle, "助手配置\0*.json\0\0");
-        if (path is not null) await ViewModel.ImportAssistantAsync(path);
-    }
-    private async void ExportAssistant_Click(object sender, RoutedEventArgs args)
-    {
-        var path = FileDialogService.Choose(_windowHandle, "助手配置\0*.json\0\0", true);
-        if (path is not null) await ViewModel.ExportAssistantAsync(path);
-    }
     private void OpenSource_Click(object sender, RoutedEventArgs args)
     {
         try

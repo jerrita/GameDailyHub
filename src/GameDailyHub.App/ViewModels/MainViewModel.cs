@@ -531,32 +531,6 @@ public partial class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(ScheduleTime)); OnPropertyChanged(nameof(ScheduleTimeZone)); OnPropertyChanged(nameof(ScheduleEnabled));
         await RefreshHistoryAsync(); ThemeRequested?.Invoke(_config.Theme); Show("配置已导入。定时运行保持关闭，请核对后再开启。");
     });
-    public async Task ExportAssistantAsync(string path) => await GuardAsync(async () =>
-    {
-        var game = SelectedGame?.Config ?? throw new InvalidOperationException("请先选择游戏");
-        ConfigurationSuggestions.Apply(game);
-        var json = await Task.Run(() => AssistantProfileService.Export(game, AssistantProfileService.RootFor(game, _sources)));
-        await File.WriteAllTextAsync(path, json);
-        Show(game.Name + "：助手配置已导出。文件可能含账号、密码和通知密钥，请妥善保管。");
-    });
-    public async Task ImportAssistantAsync(string path) => await GuardAsync(async () =>
-    {
-        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后再导入助手配置");
-        var card = SelectedGame ?? throw new InvalidOperationException("请先选择游戏");
-        var game = card.Config;
-        ConfigurationSuggestions.Apply(game);
-        var json = await File.ReadAllTextAsync(path);
-        var result = await Task.Run(() =>
-        {
-            EnsureAssistantStopped(game);
-            return AssistantProfileService.Import(json, game, AssistantProfileService.RootFor(game, _sources));
-        });
-        ConfigurationSuggestions.Apply(game);
-        // Replace the selection notification so classic bindings re-read the imported values.
-        SelectedGame = null; SelectedGame = card; card.Refresh(); RefreshConfigurationOptions();
-        Show(card.Name + $"：已导入 {result.FilesWritten} 个助手配置文件，原文件已备份（.gdh-*.bak）。请核对日常运行设置。");
-    });
-
     private void EnsureAssistantStopped(GameConfig game)
     {
         var paths = game.ToolRunMode == AssistantRunMode.Source ? [_sources.PythonPath(game)] : new[] { game.ToolPath, game.ToolGuiPath };
@@ -566,33 +540,36 @@ public partial class MainViewModel : ObservableObject
 
     private async Task TransferAssistantsAsync(Func<Task> action) => await GuardAsync(async () =>
     {
-        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后再导入或导出全部助手配置");
+        if (!IsIdle) throw new InvalidOperationException("请在当前操作结束后再导入或导出助手配置");
         IsBusy = true;
         try { await action(); }
         finally { IsBusy = false; }
     });
 
-    public async Task ExportAssistantsAsync(string path) => await TransferAssistantsAsync(async () =>
+    public async Task ExportAssistantsAsync(string path, IReadOnlyCollection<string>? adapterIds = null) => await TransferAssistantsAsync(async () =>
     {
-        foreach (var game in _config.Games) ConfigurationSuggestions.Apply(game);
-        var locations = _config.Games.Select(g => new AssistantLocation(g, AssistantProfileService.RootFor(g, _sources))).ToArray();
+        var games = SelectedAssistants(adapterIds);
+        foreach (var game in games) ConfigurationSuggestions.Apply(game);
+        var locations = games.Select(g => new AssistantLocation(g, AssistantProfileService.RootFor(g, _sources))).ToArray();
         var result = await Task.Run(() => AssistantBundleService.Export(locations));
         await File.WriteAllTextAsync(path, result.Json);
         Show($"已导出 {result.AssistantsExported} 个助手配置。" + (result.Skipped.Count > 0 ? "跳过（未安装或没有配置）：" + string.Join("、", result.Skipped) + "。" : "")
             + "文件可能含账号、密码和通知密钥，请妥善保管。");
     });
 
-    public async Task ImportAssistantsAsync(string path) => await TransferAssistantsAsync(async () =>
+    public async Task ImportAssistantsAsync(string path, IReadOnlyCollection<string>? adapterIds = null) => await TransferAssistantsAsync(async () =>
     {
         var json = await File.ReadAllTextAsync(path);
         var bundle = AssistantBundleService.Read(json);
-        var games = _config.Games.Where(g => bundle.Assistants.Any(p => p.AdapterId == g.AdapterId)).ToArray();
+        var ids = adapterIds ?? bundle.Assistants.Select(p => p.AdapterId).ToArray();
+        if (ids.Any(id => !bundle.Assistants.Any(p => p.AdapterId == id))) throw new InvalidDataException("请选择文件中包含的助手");
+        var games = SelectedAssistants(ids);
         foreach (var game in games) ConfigurationSuggestions.Apply(game);
         var locations = games.Select(g => new AssistantLocation(g, AssistantProfileService.RootFor(g, _sources))).ToArray();
         var result = await Task.Run(() =>
         {
             foreach (var game in games) EnsureAssistantStopped(game);
-            return AssistantBundleService.Import(json, locations);
+            return AssistantBundleService.Import(json, locations, ids);
         });
         var selected = SelectedGame;
         SelectedGame = null; SelectedGame = selected;
@@ -601,6 +578,14 @@ public partial class MainViewModel : ObservableObject
         await SaveAsync();
         Show($"已导入 {result.AssistantsImported} 个助手、{result.FilesWritten} 个配置文件，备份 {result.BackupsMade} 个原文件。请核对日常运行设置。");
     });
+
+    private GameConfig[] SelectedAssistants(IReadOnlyCollection<string>? adapterIds)
+    {
+        var games = _config.Games.Where(g => adapterIds is null || adapterIds.Contains(g.AdapterId)).ToArray();
+        if (games.Length == 0 || (adapterIds is not null && adapterIds.Any(id => !games.Any(g => g.AdapterId == id))))
+            throw new InvalidOperationException("请至少选择一个助手");
+        return games;
+    }
     public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
     private void OnSelectedPageChanged(string? previous)
     {

@@ -16,9 +16,8 @@
                         <TextBox Header="日志目录（留空使用默认，重启后生效）" Text="{Binding Config.LogDirectory, Mode=TwoWay}"/>
                         <TextBlock Text="{x:Bind ViewModel.ActualLogDirectory, Mode=OneWay}" TextWrapping="Wrap"/>
                         <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入配置…" Click="Import_Click"/><Button Content="导出配置…" Click="Export_Click"/><Button Content="打开日志文件夹" Click="OpenLogs_Click"/></StackPanel>
-                        <TextBlock Text="全部助手配置" FontWeight="SemiBold"/>
-                        <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入全部助手…" Click="ImportAssistants_Click"/><Button Content="导出全部助手…" Click="ExportAssistants_Click"/></StackPanel>
-                        <TextBlock Text="将已有助手配置与日常运行设置保存到一个 JSON 文件，导出后列出跳过的助手。导入前请安装对应助手并关闭其程序；原文件自动备份，本机路径保留。文件可能含账号、密码和通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Text="助手配置" FontWeight="SemiBold" VerticalAlignment="Center"/><Button Content="导入…" Click="ImportAssistants_Click" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/><Button Content="导出…" Click="ExportAssistants_Click" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/></StackPanel>
+                        <TextBlock Text="可多选或全选助手，将配置与日常运行设置保存到一个 JSON 文件。导出后列出跳过的助手。导入前请关闭所选助手；原文件自动备份，本机路径保留。文件可能含账号、密码和通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
                 </Expander>
             </StackPanel>

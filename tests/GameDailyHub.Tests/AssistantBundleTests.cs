@@ -134,7 +134,48 @@ public sealed class AssistantBundleTests : IDisposable
         var profile = new AssistantProfile { AdapterId = "zzz" };
         foreach (var bundle in new[] { new AssistantBundle { Assistants = [profile, profile] }, new AssistantBundle { SchemaVersion = 2, Assistants = [profile] } })
             Assert.Throws<InvalidDataException>(() => AssistantBundleService.Read(JsonSerializer.Serialize(bundle, JsonDefaults.Options)));
-        Assert.Throws<InvalidDataException>(() => AssistantBundleService.Read(JsonSerializer.Serialize(profile, JsonDefaults.Options)));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void ImportOnlyChangesSelectedAssistants(bool multiple)
+    {
+        string[] adapters = ["march7th", "okww", "zzz"];
+        string[] paths = ["config.yaml", "configs/daily.json", "config/one_dragon.yml"];
+        var sources = adapters.Select(a => Location(a, DirectoryFor("source-" + a))).ToArray();
+        var targets = adapters.Select(a => Location(a, DirectoryFor("target-" + a))).ToArray();
+        for (var i = 0; i < adapters.Length; i++)
+        {
+            Write(sources[i].Root!, paths[i], i == 1 ? "{\"enabled\":true}" : "enabled: true\n");
+            Write(targets[i].Root!, paths[i], i == 1 ? "{}" : "enabled: false\n");
+            sources[i].Game.Daily.TimeoutMinutes = 15;
+        }
+        var json = AssistantBundleService.Export(sources).Json;
+        string[] ids = multiple ? ["march7th", "okww"] : ["march7th"];
+        var result = AssistantBundleService.Import(json, targets.Where(t => ids.Contains(t.Game.AdapterId)), ids);
+        Assert.Equal(ids.Length, result.AssistantsImported);
+        for (var i = 0; i < adapters.Length; i++)
+        {
+            var selected = ids.Contains(adapters[i]);
+            Assert.Equal(selected ? 15 : 60, targets[i].Game.Daily.TimeoutMinutes);
+            Assert.Equal(selected, Directory.GetFiles(targets[i].Root!, "*.bak", SearchOption.AllDirectories).Length > 0);
+            if (!selected) Assert.Equal(i == 1 ? "{}" : "enabled: false\n", File.ReadAllText(Path.Combine(targets[i].Root!, paths[i])));
+        }
+    }
+
+    [Fact]
+    public void UnifiedImportAcceptsLegacySingleProfileAndRejectsEmptyOrAbsentSelection()
+    {
+        var source = DirectoryFor("source"); Write(source, "config.yaml", "enabled: true\n");
+        var target = Location("march7th", DirectoryFor("target"));
+        var json = AssistantProfileService.Export(Location("march7th", source).Game, source);
+        Assert.Throws<InvalidDataException>(() => AssistantBundleService.Import(json, [target], []));
+        Assert.Throws<InvalidDataException>(() => AssistantBundleService.Import(json, [target], ["zzz"]));
+        Assert.Empty(Directory.GetFiles(target.Root!));
+        var result = AssistantBundleService.Import(json, [target], ["march7th"]);
+        Assert.Equal(1, result.AssistantsImported);
+        Assert.Contains("true", File.ReadAllText(Path.Combine(target.Root!, "config.yaml")));
     }
 
     public void Dispose()

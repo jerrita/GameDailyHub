@@ -184,6 +184,18 @@ public sealed partial class MainWindow
         if (transitionTypes.Count == 0 || transitionTypes.Any(type => type is "None" or nameof(SuppressNavigationTransitionInfo)))
             throw new InvalidOperationException("页面切换未使用原生导航过渡");
         Mark("Assistant bundle round trip");
+        var selectionDialog = new AssistantSelectionDialog("导出", Core.Models.GameCatalog.Games);
+        if (selectionDialog.SelectedAdapterIds.Length != 4 || selectionDialog.SelectAll.IsChecked != true)
+            throw new InvalidOperationException("助手选择默认全选状态错误");
+        selectionDialog.Choices[0].IsChecked = false;
+        if (selectionDialog.SelectedAdapterIds.Length != 3 || selectionDialog.SelectAll.IsChecked is not null)
+            throw new InvalidOperationException("助手多选状态错误");
+        selectionDialog.SelectAll.IsChecked = false;
+        if (selectionDialog.IsPrimaryButtonEnabled || selectionDialog.SelectedAdapterIds.Length != 0)
+            throw new InvalidOperationException("未选择助手时应禁用操作");
+        selectionDialog.SelectAll.IsChecked = true;
+        if (selectionDialog.SelectedAdapterIds.Length != 4 || !selectionDialog.IsPrimaryButtonEnabled)
+            throw new InvalidOperationException("助手全选失败");
         string[] assistantFiles = ["User/config.json", "config.yaml", "configs/daily.json", "config/01/game.yml"];
         for (var i = 0; i < ViewModel.Games.Count; i++)
         {
@@ -198,10 +210,18 @@ public sealed partial class MainWindow
             game.Daily.TimeoutMinutes = 20 + i;
         }
         var bundlePath = Path.Combine(outputRoot, "assistants.json");
+        var subsetPath = Path.Combine(outputRoot, "selected-assistants.json");
+        await ViewModel.ExportAssistantsAsync(subsetPath, ["march7th", "zzz"]);
+        if (!File.Exists(subsetPath) || !AssistantBundleService.Read(await File.ReadAllTextAsync(subsetPath)).Assistants.Select(p => p.AdapterId).SequenceEqual(["march7th", "zzz"]))
+            throw new InvalidOperationException("勾选助手导出失败：" + ViewModel.Message);
         await ViewModel.ExportAssistantsAsync(bundlePath);
         if (!File.Exists(bundlePath) || AssistantBundleService.Read(await File.ReadAllTextAsync(bundlePath)).Assistants.Count != 4)
             throw new InvalidOperationException("全部助手导出失败：" + ViewModel.Message);
         foreach (var card in ViewModel.Games) card.Config.Daily.TimeoutMinutes = 60;
+        await ViewModel.ImportAssistantsAsync(bundlePath, ["march7th", "zzz"]);
+        persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
+        if (!persisted.Games.Select(g => g.Daily.TimeoutMinutes).SequenceEqual([60d, 21d, 60d, 23d]))
+            throw new InvalidOperationException("勾选助手导入或持久化失败：" + ViewModel.Message);
         await ViewModel.ImportAssistantsAsync(bundlePath);
         persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
         if (!ViewModel.IsIdle || persisted.Games.Where((game, i) => game.Daily.TimeoutMinutes != 20 + i).Any())

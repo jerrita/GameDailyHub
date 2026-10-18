@@ -48,11 +48,6 @@
                     <TextBlock Text="{x:Bind ViewModel.ExecutionSummary, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     <Expander x:Name="AdvancedOptions" Header="高级" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                         <StackPanel Spacing="20">
-                            <StackPanel Spacing="8">
-                                <TextBlock Text="助手配置" Style="{ThemeResource SubtitleTextBlockStyle}"/>
-                                <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入…" Click="ImportAssistant_Click"/><Button Content="导出…" Click="ExportAssistant_Click"/></StackPanel>
-                                <TextBlock Text="导出助手自身的配置与日常运行设置，便于在其他电脑或重装后恢复。导入时保留本机路径并自动备份原文件，需先关闭助手。导出文件可能含账号、密码和通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                            </StackPanel>
                             <Expander Header="启动选项" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="14">
                                     <Grid ColumnSpacing="12" Visibility="{x:Bind ViewModel.BinaryVisibility, Mode=OneWay}"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions><TextBox Header="助手界面程序（可选）" Text="{Binding SelectedGame.Config.ToolGuiPath, Mode=TwoWay}"/><Button Grid.Column="1" Content="浏览…" Tag="ToolGuiPath" Click="Browse_Click" VerticalAlignment="Bottom"/></Grid>

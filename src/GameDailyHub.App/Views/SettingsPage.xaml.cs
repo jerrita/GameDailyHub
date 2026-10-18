@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using GameDailyHub.Core.Models;
 using GameDailyHub.App.ViewModels;
 using GameDailyHub.Windows.Services;
 using Microsoft.UI.Xaml;
@@ -63,13 +64,24 @@ public sealed partial class SettingsPage : Page
 
     private async void ImportAssistants_Click(object sender, RoutedEventArgs args)
     {
-        var path = FileDialogService.Choose(_windowHandle, "全部助手配置\0*.json\0\0");
-        if (path is not null) await ViewModel.ImportAssistantsAsync(path);
+        var path = FileDialogService.Choose(_windowHandle, "助手配置\0*.json\0\0");
+        if (path is null) return;
+        try
+        {
+            var bundle = AssistantBundleService.Read(await File.ReadAllTextAsync(path));
+            var choices = GameCatalog.Games.Where(g => bundle.Assistants.Any(p => p.AdapterId == g.AdapterId));
+            var dialog = new AssistantSelectionDialog("导入", choices) { XamlRoot = XamlRoot };
+            if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+                await ViewModel.ImportAssistantsAsync(path, dialog.SelectedAdapterIds);
+        }
+        catch (Exception e) { ViewModel.Show(e.Message); }
     }
 
     private async void ExportAssistants_Click(object sender, RoutedEventArgs args)
     {
-        var path = FileDialogService.Choose(_windowHandle, "全部助手配置\0*.json\0\0", true);
-        if (path is not null) await ViewModel.ExportAssistantsAsync(path);
+        var dialog = new AssistantSelectionDialog("导出", GameCatalog.Games) { XamlRoot = XamlRoot };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary) return;
+        var path = FileDialogService.Choose(_windowHandle, "助手配置\0*.json\0\0", true);
+        if (path is not null) await ViewModel.ExportAssistantsAsync(path, dialog.SelectedAdapterIds);
     }
 }

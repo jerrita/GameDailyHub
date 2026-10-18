@@ -35,8 +35,10 @@ public static class AssistantBundleService
     public static AssistantBundle Read(string json)
     {
         AssistantBundle bundle;
-        try { bundle = JsonSerializer.Deserialize<AssistantBundle>(json, JsonDefaults.Options) ?? throw new InvalidDataException("全部助手配置为空"); }
-        catch (JsonException e) { throw new InvalidDataException("全部助手配置 JSON 格式无效", e); }
+        try { bundle = JsonSerializer.Deserialize<AssistantBundle>(json, JsonDefaults.Options) ?? throw new InvalidDataException("助手配置为空"); }
+        catch (JsonException e) { throw new InvalidDataException("助手配置 JSON 格式无效", e); }
+        if (bundle.Kind == AssistantProfile.FileKind)
+            bundle = new AssistantBundle { Assistants = [AssistantProfileService.Read(json)] };
         Validate(bundle);
         return bundle;
     }
@@ -44,7 +46,7 @@ public static class AssistantBundleService
     private static void Validate(AssistantBundle bundle)
     {
         if (bundle.Kind != AssistantBundle.FileKind || bundle.SchemaVersion != 1)
-            throw new InvalidDataException("请选择 GameDailyHub 导出的全部助手配置文件（版本 1）");
+            throw new InvalidDataException("请选择 GameDailyHub 导出的助手配置文件（版本 1）");
         if (bundle.Assistants is null || bundle.Assistants.Count == 0 || bundle.Assistants.Count > GameCatalog.Games.Count)
             throw new InvalidDataException("助手配置数量无效");
         foreach (var profile in bundle.Assistants)
@@ -57,18 +59,21 @@ public static class AssistantBundleService
     }
 
     // Prepare every assistant before writing any file or changing Hub settings.
-    public static AssistantBundleImport Import(string json, IEnumerable<AssistantLocation> locations)
+    public static AssistantBundleImport Import(string json, IEnumerable<AssistantLocation> locations, IReadOnlyCollection<string>? adapterIds = null)
     {
         var bundle = Read(json);
+        var selected = adapterIds is null ? bundle.Assistants : bundle.Assistants.Where(p => adapterIds.Contains(p.AdapterId)).ToList();
+        if (selected.Count == 0 || (adapterIds is not null && adapterIds.Any(id => !selected.Any(p => p.AdapterId == id))))
+            throw new InvalidDataException("请选择文件中包含的助手");
         var targets = locations.ToDictionary(l => l.Game.AdapterId);
         var pending = new List<(string Full, string Content)>();
-        foreach (var profile in bundle.Assistants)
+        foreach (var profile in selected)
         {
             if (!targets.TryGetValue(profile.AdapterId, out var location)) throw new InvalidDataException("缺少目标助手：" + profile.ToolName);
             pending.AddRange(AssistantProfileService.Prepare(profile, location.Game, location.Root));
         }
         var result = AssistantProfileService.WriteFiles(pending);
-        foreach (var profile in bundle.Assistants) AssistantProfileService.Apply(profile, targets[profile.AdapterId].Game);
-        return new(bundle.Assistants.Count, result.FilesWritten, result.BackupsMade);
+        foreach (var profile in selected) AssistantProfileService.Apply(profile, targets[profile.AdapterId].Game);
+        return new(selected.Count, result.FilesWritten, result.BackupsMade);
     }
 }
