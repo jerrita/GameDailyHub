@@ -156,3 +156,12 @@
 - 报告及设置页截图：`artifacts/smoke-assistant-selection/smoke.json`、`settings.png`；测试结果：`artifacts/TestResults/tests.trx`。测试使用隔离配置，未读取真实账号配置或触发 UAC。
 
 本轮无剩余失败项；真实助手配置恢复后的运行及前述实机待验项目仍待验证。
+
+## 2026-10-18 共享运行库发布
+
+- .NET 与 Windows App SDK 改为使用共享运行库；发布前清理旧目录，发布结果不携带两套运行库及 Windows ML 原生运行库。
+- 发布目录由 173.24 MiB 缩小至 40.47 MiB；运行环境要求见 README。
+- 应用 Release 构建、C# 静态分析、fmt、PowerShell 语法与差异检查通过。初次 NuGet 审核网络警告及受限环境下的 fmt 管道访问错误已在重试后消除。
+- 本机已安装 .NET 10.0.13 和 Windows App Runtime 2.5.1 x64。普通权限测试版使用独立发布与数据目录，六页面及配置保存检查通过，绑定错误 0；未启动管理员交付版。
+- 完整解决方案构建仍被工作区原有的未跟踪文件 `tests/GameDailyHub.Tests/JsonSerializationSetup.cs` 阻断：引用的 `HubJsonContext`、`WindowsJsonContext` 和 `JsonDefaults.Use` 不存在；该文件未修改，未执行完整测试。
+- 日志：`artifacts/lint-build-shared-runtime.log`、`artifacts/publish-shared-runtime.log`、`artifacts/fmt-shared-runtime.log`；界面报告：`artifacts/smoke-shared-runtime/smoke.json`。此前实机待验项目继续保留。

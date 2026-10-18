@@ -5,6 +5,12 @@ $publishDirectory = Join-Path $workspaceRoot 'artifacts/publish/win-x64/'
 $msbuild = Get-GameDailyHubMSBuild
 Push-Location $workspaceRoot
 try {
+    if (Test-Path -LiteralPath $publishDirectory) {
+        $resolvedPublishDirectory = (Resolve-Path -LiteralPath $publishDirectory).Path.TrimEnd('\', '/')
+        $expectedPublishDirectory = [IO.Path]::GetFullPath((Join-Path $workspaceRoot 'artifacts/publish/win-x64')).TrimEnd('\', '/')
+        if ($resolvedPublishDirectory -ne $expectedPublishDirectory) { throw '发布目录超出预期路径，停止清理。' }
+        Remove-Item -LiteralPath $resolvedPublishDirectory -Recurse -Force
+    }
     & $msbuild src/GameDailyHub.App/GameDailyHub.App.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:HubUiTest=false "/p:PublishDir=$publishDirectory" /m:1 /nodeReuse:false /v:minimal /nologo
     if ($LASTEXITCODE -ne 0) { throw '发布失败。' }
     if ((Get-GameDailyHubExecutionLevel (Join-Path $publishDirectory 'GameDailyHub.App.exe')) -ne 'requireAdministrator') { throw '发布程序未声明管理员权限。' }

@@ -6,7 +6,7 @@
     <ApplicationIcon>Assets\AppIcon.ico</ApplicationIcon>
     <Platforms>x64</Platforms><PlatformTarget>x64</PlatformTarget><RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <UseWinUI>true</UseWinUI><WindowsPackageType>None</WindowsPackageType>
-    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained><SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>false</WindowsAppSDKSelfContained><SelfContained>false</SelfContained>
     <PublishTrimmed>false</PublishTrimmed><PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
   <PropertyGroup Condition="'$(HubUiTest)' == 'true'">
@@ -24,6 +24,12 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.4948"/>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0"/>
   </ItemGroup>
+  <!-- The SDK suppresses Windows ML native build output in shared mode; apply it to publish output too. -->
+  <Target Name="ExcludeSharedWindowsMLRuntimeFromPublish" AfterTargets="ComputeResolvedFilesToPublishList" Condition="'$(WindowsAppSDKSelfContained)' != 'true'">
+    <ItemGroup>
+      <ResolvedFileToPublish Remove="@(ResolvedFileToPublish)" Condition="'%(ResolvedFileToPublish.NuGetPackageId)' == 'Microsoft.Windows.AI.MachineLearning' and '%(ResolvedFileToPublish.AssetType)' == 'native'"/>
+    </ItemGroup>
+  </Target>
   <!-- Unpackaged SDK Publish does not always include project PRI/XBF output. -->
   <Target Name="IncludeWinUIResourcesInPublish" AfterTargets="ComputeFilesToPublish">
     <Error Condition="!Exists('$(TargetDir)$(AssemblyName).pri')" Text="WinUI 项目 PRI 尚未生成，请先完成构建。"/>

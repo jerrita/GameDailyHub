@@ -6,7 +6,7 @@
 
 发布目录为 `artifacts/publish/win-x64`。运行 `GameDailyHub.App.exe` 时由 Windows 请求管理员权限，助手和游戏继承 Hub 的权限。请保留同目录依赖文件。
 
-目标系统为 Windows 10 22H2、Windows 11 x64。发布包包含 .NET 和 Windows App SDK 运行时。当前本机验证环境为 Windows 11 25H2；其他系统及纯净机器仍需兼容性验证。
+目标系统为 Windows 10 22H2、Windows 11 x64。发布包使用共享运行库，运行前需安装 [.NET 10 Runtime（x64）](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0) 和 [Windows App Runtime 2.5.1 或兼容更新版本（x64）](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)，无需安装开发用 SDK。当前本机验证环境为 Windows 11 25H2；其他系统及纯净机器仍需兼容性验证。
 
 首次启动打开「游戏」，游戏程序和助手程序路径留空时自动查找默认安装位置，也可手动指定。改动在离开页面、关闭应用或调整定时与外观时自动保存。BetterGI 另需填写一条龙配置名称；March7th 的工作流可留空运行默认日常。
 
