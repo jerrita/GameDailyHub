@@ -4,6 +4,7 @@ using GameDailyHub.Windows.Services;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media.Imaging;
 using System.Runtime.InteropServices.WindowsRuntime;
 using global::Windows.Graphics.Imaging;
@@ -22,6 +23,8 @@ public sealed partial class MainWindow : Window
     {
         ViewModel = new(DispatcherQueue, App.SmokeRoot is null ? null : Path.Combine(App.SmokeRoot, "data"));
         InitializeComponent();
+        RootGrid.AddHandler(UIElement.PointerPressedEvent, new PointerEventHandler(OnNavigationPointerPressed), true);
+        RootGrid.AddHandler(UIElement.KeyDownEvent, new KeyEventHandler(OnNavigationKeyDown), true);
         AppWindow.SetIcon(Path.Combine(AppContext.BaseDirectory, "Assets", "AppIcon.ico"));
         RootGrid.DataContext = ViewModel;
         ViewModel.PropertyChanged += (_, e) =>
@@ -67,6 +70,26 @@ public sealed partial class MainWindow : Window
     private void Navigation_SelectionChanged(NavigationView sender, NavigationViewSelectionChangedEventArgs args)
     {
         ViewModel.SelectedPage = args.IsSettingsSelected ? "settings" : (args.SelectedItem as NavigationViewItem)?.Tag?.ToString() ?? "home";
+    }
+    private void OnNavigationPointerPressed(object sender, PointerRoutedEventArgs args)
+    {
+        switch (args.GetCurrentPoint(RootGrid).Properties.PointerUpdateKind)
+        {
+            case Microsoft.UI.Input.PointerUpdateKind.XButton1Pressed:
+                ViewModel.GoBack(); args.Handled = true; break;
+            case Microsoft.UI.Input.PointerUpdateKind.XButton2Pressed:
+                ViewModel.GoForward(); args.Handled = true; break;
+        }
+    }
+    private void OnNavigationKeyDown(object sender, KeyRoutedEventArgs args)
+    {
+        switch (args.Key)
+        {
+            case global::Windows.System.VirtualKey.GoBack:
+                ViewModel.GoBack(); args.Handled = true; break;
+            case global::Windows.System.VirtualKey.GoForward:
+                ViewModel.GoForward(); args.Handled = true; break;
+        }
     }
     private async void OnClosing(AppWindow sender, AppWindowClosingEventArgs args)
     {
@@ -157,6 +180,29 @@ public sealed partial class MainWindow : Window
         if (!InitializationSucceeded) throw new InvalidOperationException(ViewModel.Message);
         if (!ViewModel.Games.Select(game => game.Config.AdapterId).SequenceEqual(Core.Models.GameCatalog.Games.Select(game => game.AdapterId)))
             throw new InvalidOperationException("支持的游戏未正确载入");
+        RootGrid.UpdateLayout();
+        await Task.Delay(150);
+        void VerifyNavigation(string page)
+        {
+            var selected = Navigation.SelectedItem is not null && ReferenceEquals(Navigation.SelectedItem, Navigation.SettingsItem) ? "settings" : (Navigation.SelectedItem as NavigationViewItem)?.Tag?.ToString();
+            if (ViewModel.SelectedPage != page || selected != page) throw new InvalidOperationException($"导航历史或选中项错误：预期 {page}，页面 {ViewModel.SelectedPage}，选中项 {selected ?? "空"}");
+        }
+        ViewModel.GoBack(); ViewModel.GoForward(); VerifyNavigation("home");
+        ViewModel.SelectedPage = "tasks";
+        ViewModel.SelectedPage = "settings";
+        ViewModel.GoBack(); VerifyNavigation("tasks");
+        ViewModel.GoBack(); ViewModel.GoBack(); VerifyNavigation("home");
+        ViewModel.GoForward(); VerifyNavigation("tasks");
+        ViewModel.GoForward(); ViewModel.GoForward(); VerifyNavigation("settings");
+        ViewModel.GoBack();
+        ViewModel.SelectedPage = "tasks";
+        ViewModel.GoForward(); VerifyNavigation("settings");
+        ViewModel.GoBack();
+        ViewModel.SelectedPage = "logs";
+        ViewModel.GoForward(); VerifyNavigation("logs");
+        ViewModel.GoBack(); VerifyNavigation("tasks");
+        ViewModel.SelectedPage = "home";
+        Mark("Navigation history");
         ViewModel.SelectedGame!.ConfigureCommand.Execute(null);
         if (ViewModel.SelectedPage != "config") throw new InvalidOperationException("卡片配置导航失败");
         if (AdvancedOptions.IsExpanded) throw new InvalidOperationException("高级设置应默认收起");

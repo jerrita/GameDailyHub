@@ -41,6 +41,9 @@ public partial class MainViewModel : ObservableObject
     private string? _lastStorageError;
     private bool _savedStartupEnabled;
     private bool _refreshingOptions;
+    private readonly Stack<string> _backPages = new();
+    private readonly Stack<string> _forwardPages = new();
+    private bool _navigatingHistory;
     public AppConfig Config => _config;
     public ObservableCollection<GameCardViewModel> Games { get; } = [];
     public ObservableCollection<TaskRowViewModel> Tasks { get; } = [];
@@ -565,8 +568,23 @@ public partial class MainViewModel : ObservableObject
     });
     public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
     private Visibility VisibilityFor(string page) => SelectedPage == page ? Visibility.Visible : Visibility.Collapsed;
+    public void GoBack() => NavigateHistory(_backPages, _forwardPages);
+    public void GoForward() => NavigateHistory(_forwardPages, _backPages);
+    private void NavigateHistory(Stack<string> from, Stack<string> to)
+    {
+        if (!from.TryPop(out var page)) return;
+        to.Push(SelectedPage);
+        _navigatingHistory = true;
+        try { SelectedPage = page; }
+        finally { _navigatingHistory = false; }
+    }
     private void OnSelectedPageChanged(string? previous)
     {
+        if (!_navigatingHistory && previous is not null)
+        {
+            _backPages.Push(previous);
+            _forwardPages.Clear();
+        }
         if (previous is not null) _ = SaveIfChangedAsync();
         foreach (var name in new[] { nameof(HomeVisibility), nameof(TasksVisibility), nameof(ConfigVisibility), nameof(LogsVisibility), nameof(ScheduleVisibility), nameof(SettingsVisibility) }) OnPropertyChanged(name);
     }
