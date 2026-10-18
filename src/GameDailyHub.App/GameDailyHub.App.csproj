@@ -9,6 +9,12 @@
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained><SelfContained>true</SelfContained>
     <PublishTrimmed>false</PublishTrimmed><PublishSingleFile>false</PublishSingleFile>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(HubUiTest)' == 'true'">
+    <ApplicationManifest>app.test.manifest</ApplicationManifest>
+    <DefineConstants>$(DefineConstants);HUB_UI_TEST</DefineConstants>
+    <IntermediateOutputPath>obj\ui-test\$(Platform)\$(Configuration)\</IntermediateOutputPath>
+    <OutputPath>bin\ui-test\$(Platform)\$(Configuration)\</OutputPath>
+  </PropertyGroup>
   <ItemGroup>
     <Content Include="Assets\AppIcon.ico" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>
     <Content Include="Assets\AppIcon.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest"/>

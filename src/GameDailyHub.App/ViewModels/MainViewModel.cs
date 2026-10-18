@@ -289,8 +289,19 @@ public partial class MainViewModel : ObservableObject
         SetServices();
         await _journal.RecoverInterruptedRunsAsync();
         ReloadGames();
-        try { _savedStartupEnabled = StartupEnabled = await _startup.IsEnabledAsync(); }
-        catch (Exception e) when (e is System.Security.SecurityException or UnauthorizedAccessException or IOException)
+        try
+        {
+            if (App.IsUiTestBuild)
+            {
+                StartupAvailable = false;
+            }
+            else
+            {
+                await _startup.MigrateLegacyAsync();
+                _savedStartupEnabled = StartupEnabled = await _startup.IsEnabledAsync();
+            }
+        }
+        catch (Exception e) when (e is System.Security.SecurityException or UnauthorizedAccessException or IOException or System.Runtime.InteropServices.COMException)
         {
             StartupAvailable = false;
             StartupHint = "当前环境限制访问登录启动项。";

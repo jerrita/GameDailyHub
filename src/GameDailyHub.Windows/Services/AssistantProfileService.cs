@@ -220,9 +220,9 @@ public static partial class AssistantProfileService
             }
         }
     }
-    private static bool ContainsPath(JsonNode node) => node switch
+    private static bool ContainsPath(JsonNode? node) => node switch
     {
-        JsonObject o => o.Any(p => ContainsPath(p.Value!)),
+        JsonObject o => o.Any(p => ContainsPath(p.Value)),
         JsonArray a => a.Any(ContainsPath),
         _ => IsPath(node)
     };

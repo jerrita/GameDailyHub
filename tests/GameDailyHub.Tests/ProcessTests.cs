@@ -10,6 +10,61 @@ public sealed class ProcessTests
 {
     private static string Fixture => Path.Combine(AppContext.BaseDirectory, "GameDailyHub.Tests.exe");
     [Fact]
+    public async Task OwnedProcessInheritsOnlyItsOwnStandardHandles()
+    {
+        var file = Path.GetTempFileName();
+        try
+        {
+            using var handle = File.OpenHandle(file, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            Assert.True(ProcessFixture.SetHandleInformation(handle.DangerousGetHandle(), 1, 1));
+            await using var owned = new ProcessService().StartOwned(Fixture,
+                "fixture probe-handle " + handle.DangerousGetHandle().ToInt64() + " " + CommandArguments.Quote(file), "");
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (!owned.HasExited) await Task.Delay(10, timeout.Token);
+            Assert.True(await owned.DrainOutputAsync(timeout.Token));
+            var lines = new List<string>();
+            while (owned.Lines.Reader.TryRead(out var line)) lines.Add(line);
+            Assert.Contains("EXTRA_HANDLE_INHERITED=False", lines);
+            Assert.Equal(0, owned.ExitCode);
+        }
+        finally { File.Delete(file); }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ChildEnvironmentDropsHubRuntimeAndPreservesOutputEncoding(bool owned)
+    {
+        const string variable = "MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY";
+        var original = Environment.GetEnvironmentVariable(variable);
+        var file = Path.GetTempFileName();
+        try
+        {
+            Environment.SetEnvironmentVariable(variable, "test-bootstrap-directory");
+            var service = new ProcessService();
+            var arguments = "fixture environment " + CommandArguments.Quote(file);
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            if (owned)
+            {
+                await using var session = service.StartOwned(Fixture, arguments, "");
+                while (!session.HasExited) await Task.Delay(10, timeout.Token);
+                Assert.Equal(0, session.ExitCode);
+            }
+            else
+            {
+                var result = await service.LaunchNormalAsync(Fixture, arguments, "", timeout.Token, createNoWindow: true,
+                    environment: new Dictionary<string, string> { ["PYTHONIOENCODING"] = "utf-8" });
+                Assert.True(result.Success);
+                using var process = Process.GetProcessById(result.ProcessId!.Value);
+                await process.WaitForExitAsync(timeout.Token);
+                Assert.Equal(0, process.ExitCode);
+            }
+            Assert.Equal("<unset>|utf-8", await File.ReadAllTextAsync(file, timeout.Token));
+        }
+        finally { Environment.SetEnvironmentVariable(variable, original); File.Delete(file); }
+    }
+
+    [Fact]
     public async Task JobTracksAndTerminatesChildrenWithoutTouchingUnrelatedNormalProcess()
     {
         var service = new ProcessService();

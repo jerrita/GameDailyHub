@@ -90,6 +90,18 @@ public sealed class AssistantProfileTests : IDisposable
     }
 
     [Fact]
+    public void NestedArraysWithNullAndMachinePathsKeepLocalValues()
+    {
+        var from = Make("from"); var to = Make("to");
+        Write(from, "configs/basic.json", "{\"items\":[{\"nested\":[null,{\"path\":\"C:\\\\Source\\\\Client.exe\"}]}]}");
+        Write(to, "configs/basic.json", "{\"items\":[{\"nested\":[null,{\"path\":\"D:\\\\Local\\\\Client.exe\"}]}]}");
+        AssistantProfileService.Import(AssistantProfileService.Export(Game("okww"), from), Game("okww"), to);
+        var result = Read(to, "configs/basic.json");
+        Assert.Contains("Local", result);
+        Assert.DoesNotContain("Source", result);
+    }
+
+    [Fact]
     public void ImportRejectsOtherAssistantAndChangesNothing()
     {
         var from = Make("from"); var to = Make("to");

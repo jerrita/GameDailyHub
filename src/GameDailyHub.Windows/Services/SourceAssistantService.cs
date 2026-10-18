@@ -32,9 +32,12 @@ public sealed class SourceAssistantService(ProcessService processes, string data
     }
     public string Arguments(GameConfig game, bool gui, string arguments) => "-u " + CommandArguments.Quote(EntryPath(game, gui))
         + (string.IsNullOrWhiteSpace(arguments) ? "" : " " + arguments);
-    private IReadOnlyDictionary<string, string>? RuntimeEnvironment(GameConfig game) => game.AdapterId == "zzz"
-        ? new Dictionary<string, string> { ["PYTHONPATH"] = Path.Combine(DirectoryFor(game), "src"), ["PYTHONIOENCODING"] = "utf-8" }
-        : null;
+    private IReadOnlyDictionary<string, string> RuntimeEnvironment(GameConfig game)
+    {
+        var environment = new Dictionary<string, string> { ["PYTHONIOENCODING"] = "utf-8" };
+        if (game.AdapterId == "zzz") environment["PYTHONPATH"] = Path.Combine(DirectoryFor(game), "src");
+        return environment;
+    }
     public async Task<LaunchResult> LaunchGuiAsync(GameConfig game, CancellationToken token)
     {
         var gate = Gate(game);

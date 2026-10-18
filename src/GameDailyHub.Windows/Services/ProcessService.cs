@@ -37,6 +37,14 @@ public sealed record ProcessIdentity(int Pid, long CreatedFileTime, string Path,
 
 public sealed class ProcessService
 {
+    internal static Dictionary<string, string> ChildEnvironment(IReadOnlyDictionary<string, string>? overrides = null)
+    {
+        var environment = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
+            .ToDictionary(e => (string)e.Key, e => (string)e.Value!, StringComparer.OrdinalIgnoreCase);
+        environment.Remove("MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY");
+        if (overrides is not null) foreach (var pair in overrides) environment[pair.Key] = pair.Value;
+        return environment;
+    }
     public static string Normalize(string path) => Path.GetFullPath(Environment.ExpandEnvironmentVariables(path.Trim().Trim('"')));
     public IReadOnlyList<ProcessIdentity> FindRunning(string path)
     {
@@ -99,16 +107,16 @@ public sealed class ProcessService
         Process started;
         try
         {
-            // CreateProcess keeps the current token and never requests shell elevation.
+            // Helpers inherit the Hub's administrator token. UI tests use an asInvoker host.
             var startInfo = new ProcessStartInfo(target, arguments) { UseShellExecute = false, WorkingDirectory = ResolveDirectory(directory, target), CreateNoWindow = createNoWindow };
-            if (environment is not null)
-                foreach (var (key, value) in environment) startInfo.Environment[key] = value;
+            startInfo.Environment.Clear();
+            foreach (var (key, value) in ChildEnvironment(environment)) startInfo.Environment[key] = value;
             started = Process.Start(startInfo)
                 ?? throw new InvalidOperationException("系统未返回启动进程");
         }
         catch (Win32Exception e) when (e.NativeErrorCode == 740)
         {
-            return new(false, false, "此程序要求管理员权限，请选择支持普通权限的启动入口");
+            return new(false, false, "当前 Hub 未取得管理员权限，请从发布目录启动管理员版 Hub");
         }
         using var startedProcess = started;
         await Task.Yield();
@@ -147,60 +155,93 @@ public sealed class OwnedProcessSession : IAsyncDisposable
     }
     internal OwnedProcessSession(string path, string args, string directory, IReadOnlyDictionary<string, string>? overrides)
     {
-        _job = NativeMethods.CreateJobObject(IntPtr.Zero, null);
-        if (_job.IsInvalid) throw new Win32Exception();
-        _output = new(PipeDirection.In, HandleInheritability.Inheritable);
-        _error = new(PipeDirection.In, HandleInheritability.Inheritable);
-        var limits = new NativeMethods.ExtendedLimit { Basic = new() { LimitFlags = 0x2000 } };
-        if (!NativeMethods.SetInformationJobObject(_job, 9, ref limits, (uint)Marshal.SizeOf<NativeMethods.ExtendedLimit>())) throw new Win32Exception();
-        using var input = File.OpenHandle("NUL", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
-        NativeMethods.SetHandleInformation(input.DangerousGetHandle(), 1, 1);
-        var startup = new NativeMethods.StartupInfo
-        {
-            Size = Marshal.SizeOf<NativeMethods.StartupInfo>(),
-            Flags = 0x100 | 1,
-            ShowWindow = 0,
-            StdInput = input.DangerousGetHandle(),
-            StdOutput = _output.ClientSafePipeHandle.DangerousGetHandle(),
-            StdError = _error.ClientSafePipeHandle.DangerousGetHandle()
-        };
-        var environment = Environment.GetEnvironmentVariables().Cast<System.Collections.DictionaryEntry>()
-            .ToDictionary(e => (string)e.Key, e => (string)e.Value!, StringComparer.OrdinalIgnoreCase);
-        // Do not leak the Hub's WinAppSDK bootstrap directory into third-party processes.
-        environment.Remove("MICROSOFT_WINDOWSAPPRUNTIME_BASE_DIRECTORY");
-        if (overrides is not null) foreach (var pair in overrides) environment[pair.Key] = pair.Value;
-        var block = string.Join('\0', environment.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase).Select(e => e.Key + "=" + e.Value)) + "\0\0";
-        var environmentPtr = Marshal.StringToHGlobalUni(block);
         NativeMethods.ProcessInformation info = default;
+        var environmentPtr = IntPtr.Zero;
         try
         {
+            _job = NativeMethods.CreateJobObject(IntPtr.Zero, null);
+            if (_job.IsInvalid) throw new Win32Exception();
+            _output = new(PipeDirection.In, HandleInheritability.Inheritable);
+            _error = new(PipeDirection.In, HandleInheritability.Inheritable);
+            var limits = new NativeMethods.ExtendedLimit { Basic = new() { LimitFlags = 0x2000 } };
+            if (!NativeMethods.SetInformationJobObject(_job, 9, ref limits, (uint)Marshal.SizeOf<NativeMethods.ExtendedLimit>())) throw new Win32Exception();
+            using var input = File.OpenHandle("NUL", FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            if (!NativeMethods.SetHandleInformation(input.DangerousGetHandle(), 1, 1)) throw new Win32Exception();
+            using var handles = new InheritedHandles(input.DangerousGetHandle(), _output.ClientSafePipeHandle.DangerousGetHandle(), _error.ClientSafePipeHandle.DangerousGetHandle());
+            var startup = new NativeMethods.StartupInfoEx
+            {
+                Startup = new()
+                {
+                    Size = Marshal.SizeOf<NativeMethods.StartupInfoEx>(),
+                    Flags = 0x100 | 1,
+                    ShowWindow = 0,
+                    StdInput = input.DangerousGetHandle(),
+                    StdOutput = _output.ClientSafePipeHandle.DangerousGetHandle(),
+                    StdError = _error.ClientSafePipeHandle.DangerousGetHandle()
+                },
+                Attributes = handles.Attributes
+            };
+            var environment = ProcessService.ChildEnvironment(overrides);
+            environment["PYTHONIOENCODING"] = "utf-8";
+            var block = string.Join('\0', environment.OrderBy(e => e.Key, StringComparer.OrdinalIgnoreCase).Select(e => e.Key + "=" + e.Value)) + "\0\0";
+            environmentPtr = Marshal.StringToHGlobalUni(block);
             if (!NativeMethods.CreateProcess(path, new StringBuilder(CommandArguments.Quote(path) + " " + args), IntPtr.Zero, IntPtr.Zero,
-                    true, 0x4 | 0x08000000 | 0x400, environmentPtr, directory, ref startup, out info)) throw new Win32Exception(Marshal.GetLastWin32Error());
+                    true, 0x4 | 0x08000000 | 0x400 | 0x80000, environmentPtr, directory, ref startup, out info)) throw new Win32Exception(Marshal.GetLastWin32Error());
             _process = new SafeProcessHandle(info.Process, true);
             if (!NativeMethods.AssignProcessToJobObject(_job, _process))
             {
                 var error = Marshal.GetLastWin32Error();
-                NativeMethods.TerminateProcess(_process, 1);
                 throw new Win32Exception(error, "无法在执行前绑定任务进程；已停止本次启动");
             }
-            NativeMethods.GetProcessTimes(_process, out var created, out _, out _, out _);
+            if (!NativeMethods.GetProcessTimes(_process, out var created, out _, out _, out _)) throw new Win32Exception();
             Identity = new((int)info.ProcessId, created, path, Process.GetCurrentProcess().SessionId);
             if (NativeMethods.ResumeThread(info.Thread) == uint.MaxValue) throw new Win32Exception();
+            _output.DisposeLocalCopyOfClientHandle(); _error.DisposeLocalCopyOfClientHandle();
         }
         catch
         {
-            _job.Dispose(); _output.Dispose(); _error.Dispose();
+            if (!_process.IsInvalid) NativeMethods.TerminateProcess(_process, 1);
+            _job?.Dispose(); _output?.Dispose(); _error?.Dispose();
             _process.Dispose();
+            _pumpCancellation.Dispose();
             throw;
         }
         finally
         {
             if (info.Thread != IntPtr.Zero) NativeMethods.CloseHandle(info.Thread);
             Marshal.FreeHGlobal(environmentPtr);
-            _output.DisposeLocalCopyOfClientHandle(); _error.DisposeLocalCopyOfClientHandle();
         }
         _pumps = Task.WhenAll(PumpAsync(_output), PumpAsync(_error));
         _ = _pumps.ContinueWith(_ => Lines.Writer.TryComplete(), TaskScheduler.Default);
+    }
+    private sealed class InheritedHandles : IDisposable
+    {
+        public IntPtr Attributes { get; private set; }
+        private IntPtr _handles;
+        private bool _initialized;
+        public InheritedHandles(params IntPtr[] handles)
+        {
+            try
+            {
+                nuint size = 0;
+                NativeMethods.InitializeProcThreadAttributeList(IntPtr.Zero, 1, 0, ref size);
+                if (size == 0) throw new Win32Exception();
+                Attributes = Marshal.AllocHGlobal(checked((int)size));
+                if (!NativeMethods.InitializeProcThreadAttributeList(Attributes, 1, 0, ref size)) throw new Win32Exception();
+                _initialized = true;
+                _handles = Marshal.AllocHGlobal(handles.Length * IntPtr.Size);
+                Marshal.Copy(handles, 0, _handles, handles.Length);
+                if (!NativeMethods.UpdateProcThreadAttribute(Attributes, 0, 0x20002, _handles, (nuint)(handles.Length * IntPtr.Size), IntPtr.Zero, IntPtr.Zero)) throw new Win32Exception();
+            }
+            catch { Dispose(); throw; }
+        }
+        public void Dispose()
+        {
+            if (_initialized) NativeMethods.DeleteProcThreadAttributeList(Attributes);
+            Marshal.FreeHGlobal(Attributes); Marshal.FreeHGlobal(_handles);
+            Attributes = _handles = IntPtr.Zero;
+            _initialized = false;
+        }
     }
     private async Task PumpAsync(Stream stream)
     {

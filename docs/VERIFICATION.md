@@ -108,7 +108,21 @@
 
 尚未解决或验证的项目：
 
-- 既有编译警告 `CS8622`：`AssistantProfileService.cs:226` 的可空性委托签名不匹配，本轮未改动该模块。
 - 尚未使用真实绝区零与助手安装目录联调。官方依赖的实际下载与安装、两种安装版启动器、管理员权限下的日常运行及游戏内结果仍需验证；当前源码进程测试使用测试专用程序。
 
 此前待人工验证的其他助手、登录启动与 Windows 10 / 纯净机器项目保持原有状态。
+
+## 2026-10-18 管理员启动与进程重审
+
+- fmt、C# 静态分析、PowerShell 语法检查与差异检查通过；Release 构建为 0 警告、0 错误。
+- 116 项测试通过，失败 0、跳过 0。覆盖标准句柄隔离、子进程环境与 UTF-8 输出、现有进程保护、启动任务 XML 及嵌套空值配置合并。
+- 登录任务定义已通过 Windows Task Scheduler 的内存解析校验；测试未注册任务，未修改用户登录启动设置。
+- 界面测试使用独立的 `obj/ui-test`、`bin/ui-test`、`artifacts/ui-test/win-x64` 和数据目录。六个页面、四款游戏及配置保存验证通过，`Elevated=false`、绑定错误 0。
+- 静态提取三个 EXE 的内嵌清单：交付版为 `requireAdministrator`，界面测试版及测试宿主为 `asInvoker`。读取程序集元数据确认交付版测试标志关闭、测试版开启。
+- 验证冒烟脚本会在启动前拒绝管理员程序。测试期间未运行管理员交付程序，未触发 UAC。
+- 已修复清单缓存混用、登录启动机制不适配管理员程序、额外句柄继承、普通启动环境污染、Python 输出编码不一致及配置合并可空性警告。
+- 交付程序已更新到 `artifacts/publish/win-x64/GameDailyHub.App.exe`。
+
+报告：`artifacts/build-admin-review.log`、`artifacts/TestResults/tests.trx`、`artifacts/smoke-admin-review/smoke.json`、`artifacts/permission-verification.json`。
+
+未实测项目：交付版实际提权启动、管理员状态下真实助手与游戏联调、登录任务实际注册/删除及旧启动项迁移。既有 Windows 10 / 纯净机器验证继续保留。

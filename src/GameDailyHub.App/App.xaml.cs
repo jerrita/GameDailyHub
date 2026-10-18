@@ -6,6 +6,11 @@ namespace GameDailyHub.App;
 
 public partial class App : Application
 {
+#if HUB_UI_TEST
+    public static bool IsUiTestBuild { get; } = true;
+#else
+    public static bool IsUiTestBuild { get; } = false;
+#endif
     public static string? SmokeRoot { get; private set; }
     public static List<string> BindingErrors { get; } = [];
     private Mutex? _instance;
@@ -23,12 +28,20 @@ public partial class App : Application
     {
         var commandLine = Environment.GetCommandLineArgs();
         var smokeIndex = Array.IndexOf(commandLine, "--smoke-root");
+#if HUB_UI_TEST
+        if (smokeIndex < 0 || smokeIndex + 1 >= commandLine.Length) { Exit(); return; }
         if (smokeIndex >= 0 && smokeIndex + 1 < commandLine.Length)
         {
             SmokeRoot = Path.GetFullPath(commandLine[smokeIndex + 1]); Directory.CreateDirectory(SmokeRoot);
             File.Delete(Path.Combine(SmokeRoot, "smoke.json")); File.Delete(Path.Combine(SmokeRoot, "crash.txt"));
         }
-        _instance = new(false, "Local\\GameDailyHub-" + WindowsIdentity.GetCurrent().User!.Value);
+#else
+        if (smokeIndex >= 0) { Exit(); return; }
+#endif
+        using var identity = WindowsIdentity.GetCurrent();
+        var instanceName = SmokeRoot is null ? identity.User!.Value
+            : "UiTest-" + Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(SmokeRoot)));
+        _instance = new(false, "Local\\GameDailyHub-" + instanceName);
         bool acquired;
         try { acquired = _instance.WaitOne(0); } catch (AbandonedMutexException) { acquired = true; }
         if (!acquired)

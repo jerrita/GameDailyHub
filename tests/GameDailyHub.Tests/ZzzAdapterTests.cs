@@ -1,4 +1,3 @@
-using System.Security.Principal;
 using GameDailyHub.Core.Models;
 using GameDailyHub.Windows.Adapters;
 using GameDailyHub.Windows.Services;
@@ -9,7 +8,7 @@ namespace GameDailyHub.Tests;
 public sealed class ZzzAdapterTests
 {
     [Fact]
-    public async Task BinaryDailyRequiresCurrentAdminTokenBeforeStartingLauncher()
+    public async Task BinaryDailyValidationUsesTheHubPermissionModel()
     {
         var root = Path.Combine(Path.GetTempPath(), "GameDailyHub-zzz-test-" + Guid.NewGuid());
         Directory.CreateDirectory(root);
@@ -19,10 +18,7 @@ public sealed class ZzzAdapterTests
             File.WriteAllText(path, "");
             var game = new GameConfig { AdapterId = "zzz", ToolPath = path };
             var result = await new ZzzAdapter(new()).ValidateAsync(game, true, default);
-            using var identity = WindowsIdentity.GetCurrent();
-            var elevated = new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
-            Assert.Equal(elevated, result.IsValid);
-            if (!elevated) Assert.Contains(result.Errors, e => e.Contains("以管理员权限打开 Hub"));
+            Assert.True(result.IsValid, string.Join("; ", result.Errors));
         }
         finally { File.Delete(Path.Combine(root, "OneDragon-RuntimeLauncher.exe")); Directory.Delete(root); }
     }
