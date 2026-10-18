@@ -18,6 +18,8 @@
 | 登录启动 | 当前用户开关即时保存，使用最高权限登录计划任务 |
 | 配置目录、日志目录、导入导出 | 在「数据」区域直接显示，保留打开日志文件夹 |
 
+设置页采用「常规」「数据」两组平铺布局，组标题沿用原生副标题样式，字段统一左对齐，目录输入框等宽。Hub 配置与助手配置的导入、导出使用相同的列布局，打开日志文件夹位于日志目录下方。
+
 交付程序声明 `requireAdministrator`，由 Windows 在启动时请求管理员权限。助手与游戏通过 CreateProcess 继承 Hub 的权限，任务仍在独立 Job Object 中执行并捕获输出。登录启动使用绑定当前用户的最高权限交互式计划任务；已有启用的注册表启动项迁移成功后清理。计划任务访问失败时显示不可用。
 
 界面测试使用独立的 `asInvoker` 构建与数据目录，仅接受冒烟入口，停用登录启动读写。测试脚本在启动前检查内嵌清单，禁止启动管理员交付程序。
@@ -53,6 +55,6 @@ BetterGI 安装目录名称依据[官方安装器配置](https://github.com/baba
 - 助手正在运行时拒绝导入，避免其退出时覆盖。
 - Hub 侧的安装路径、工作目录、日志路径、助手配置文件路径、源码目录及运行方式属于本机环境，不导出也不覆盖。导入后请核对 Hub 设置，改动自动保存。
 
-助手配置可能含账号、密码、通知地址、密钥等敏感内容，导出文件应妥善保管。Hub 整体配置备份使用「设置 → 数据」中的「导入配置」「导出配置」。
+助手配置可能含账号、密码、通知地址、密钥等敏感内容，导出文件应妥善保管。Hub 整体配置备份使用「设置 → 数据 → Hub 配置」中的「导入」「导出」。
 
 绝区零配置目录依据官方 [YamlConfig](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3/src/one_dragon/base/config/yaml_config.py) 与[用户配置清单](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/bdafa6e3/.gitignore)接入。

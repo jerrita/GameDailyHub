@@ -7,20 +7,38 @@
         <Grid>
             <StackPanel Spacing="20" MaxWidth="760" HorizontalAlignment="Left">
                 <TextBlock Text="设置" Style="{ThemeResource TitleTextBlockStyle}"/>
-                <ComboBox Header="外观" ItemsSource="{x:Bind ViewModel.Themes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{Binding Config.Theme, Mode=TwoWay}" SelectionChanged="Theme_Changed" Width="300"/>
-                <ToggleSwitch Header="登录时启动" IsOn="{x:Bind ViewModel.StartupEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.StartupAvailable, Mode=OneWay}" Toggled="Startup_Toggled" OnContent="开" OffContent="关"/>
-                <TextBlock Text="{x:Bind ViewModel.StartupHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                <Border Padding="20" CornerRadius="8" BorderThickness="1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
-                    <StackPanel Spacing="16">
-                        <TextBlock Text="数据" FontSize="18" FontWeight="SemiBold"/>
-                        <TextBox Header="数据目录" Text="{x:Bind ViewModel.DataDirectory}" IsReadOnly="True" Width="620"/>
+                <StackPanel Spacing="16">
+                    <TextBlock Text="常规" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                    <ComboBox Header="外观" ItemsSource="{x:Bind ViewModel.Themes}" ItemTemplate="{StaticResource EnumTemplate}" SelectedItem="{Binding Config.Theme, Mode=TwoWay}" SelectionChanged="Theme_Changed" Width="300" HorizontalAlignment="Left"/>
+                    <StackPanel Spacing="8">
+                        <ToggleSwitch Header="登录时启动" IsOn="{x:Bind ViewModel.StartupEnabled, Mode=TwoWay}" IsEnabled="{x:Bind ViewModel.StartupAvailable, Mode=OneWay}" Toggled="Startup_Toggled" OnContent="开" OffContent="关"/>
+                        <TextBlock Text="{x:Bind ViewModel.StartupHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </StackPanel>
+                </StackPanel>
+                <StackPanel Spacing="16">
+                    <TextBlock Text="数据" Style="{ThemeResource SubtitleTextBlockStyle}"/>
+                    <TextBox Header="数据目录" Text="{x:Bind ViewModel.DataDirectory}" IsReadOnly="True"/>
+                    <StackPanel Spacing="8">
                         <TextBox Header="日志目录（留空使用默认，重启后生效）" Text="{Binding Config.LogDirectory, Mode=TwoWay}"/>
-                        <TextBlock Text="{x:Bind ViewModel.ActualLogDirectory, Mode=OneWay}" TextWrapping="Wrap"/>
-                        <StackPanel Orientation="Horizontal" Spacing="10"><Button Content="导入配置…" Click="Import_Click"/><Button Content="导出配置…" Click="Export_Click"/><Button Content="打开日志文件夹" Click="OpenLogs_Click"/></StackPanel>
-                        <StackPanel Orientation="Horizontal" Spacing="10"><TextBlock Text="助手配置" FontWeight="SemiBold" VerticalAlignment="Center"/><Button Content="导入…" Click="ImportAssistants_Click" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/><Button Content="导出…" Click="ExportAssistants_Click" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/></StackPanel>
+                        <TextBlock Text="{x:Bind ViewModel.ActualLogDirectory, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <Button Content="打开日志文件夹" Click="OpenLogs_Click" HorizontalAlignment="Left"/>
+                    </StackPanel>
+                    <Grid ColumnSpacing="10">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <TextBlock Text="Hub 配置" VerticalAlignment="Center"/>
+                        <Button Grid.Column="1" Content="导入…" Click="Import_Click"/>
+                        <Button Grid.Column="2" Content="导出…" Click="Export_Click"/>
+                    </Grid>
+                    <StackPanel Spacing="8">
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="80"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="助手配置" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Content="导入…" Click="ImportAssistants_Click" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
+                            <Button Grid.Column="2" Content="导出…" Click="ExportAssistants_Click" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
+                        </Grid>
                         <TextBlock Text="可多选或全选助手，将配置与日常运行设置保存到一个 JSON 文件。导出后列出跳过的助手。导入前请关闭所选助手；原文件自动备份，本机路径保留。文件可能含账号、密码和通知密钥，请妥善保管。" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                     </StackPanel>
-                </Border>
+                </StackPanel>
             </StackPanel>
         </Grid>
     </ScrollViewer>
