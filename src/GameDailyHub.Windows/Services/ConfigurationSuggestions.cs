@@ -79,6 +79,8 @@ public static class ConfigurationSuggestions
         if (executables.Length == 0) yield break;
 
         var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        if (adapterId == "maaend" && installationRoots is null)
+            yield return Path.Combine(ConfigurationStore.DefaultRoot, "assistants", "MaaEnd", "MaaEnd.exe");
         var roots = installationRoots ?? new[]
         {
             Path.Combine(local, "Programs"),

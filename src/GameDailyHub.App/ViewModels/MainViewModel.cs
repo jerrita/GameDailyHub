@@ -22,6 +22,9 @@ public partial class MainViewModel : ObservableObject
     private readonly StartupService _startup = new();
     private readonly AdapterRegistry _adapters;
     private readonly SourceAssistantService _sources;
+    private readonly AssistantInstallerService _installer;
+    private CancellationTokenSource? _installCancellation;
+    private string _installationStatus = "";
     private CancellationTokenSource? _sourceCancellation;
     private sealed class SourceOperation
     {
@@ -84,7 +87,13 @@ public partial class MainViewModel : ObservableObject
     public bool StartupEnabled { get => _startupEnabled; set { SetProperty(ref _startupEnabled, value); } }
     public bool StartupAvailable { get; private set; } = true;
     public string StartupHint { get; private set; } = "";
-    public bool IsIdle => !IsBusy && !SourceBusy;
+    public bool IsIdle => !IsBusy && !SourceBusy && !InstallationBusy;
+    public bool InstallationBusy => _installCancellation is not null;
+    public Visibility InstallationVisibility => SelectedGame?.Config.AdapterId == "maaend" ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility InstallationBusyVisibility => InstallationBusy ? Visibility.Visible : Visibility.Collapsed;
+    public string InstallationDirectoryHint => "安装位置：" + _installer.MaaEndDirectory;
+    public string InstallationStatus => _installationStatus;
+    public bool CanInstallAssistant => IsIdle && SelectedGame?.Config.AdapterId == "maaend";
     public bool SourceBusy => _sourceCancellation is not null;
     public Visibility SourceBusyVisibility => SourceBusy ? Visibility.Visible : Visibility.Collapsed;
     public Visibility BusyVisibility => IsBusy ? Visibility.Visible : Visibility.Collapsed;
@@ -196,6 +205,7 @@ public partial class MainViewModel : ObservableObject
             foreach (var name in new[] { nameof(SelectedTrigger), nameof(SelectedCompletion), nameof(ProfileVisibility), nameof(AutomaticVisibility), nameof(CustomArgumentsVisibility), nameof(LogRulesVisibility), nameof(March7thVisibility), nameof(ProfileHeader), nameof(ProfileHint), nameof(ToolPathHeader), nameof(SelectedToolPath), nameof(SelectionVisibility), nameof(ExecutionSummary) }) OnPropertyChanged(name);
             foreach (var name in new[] { nameof(SelectedRunMode), nameof(SelectedSourceDirectory), nameof(RunModeVisibility), nameof(SourceVisibility), nameof(BinaryVisibility), nameof(SourceDirectoryHint) }) OnPropertyChanged(name);
             RefreshSourceDetails();
+            RefreshInstallationDetails();
         }
         finally { _refreshingOptions = false; }
     }
@@ -207,6 +217,8 @@ public partial class MainViewModel : ObservableObject
     public IAsyncRelayCommand UpdateSourceCommand { get; }
     public IAsyncRelayCommand InstallSourceCommand { get; }
     public IRelayCommand CancelSourceCommand { get; }
+    public IAsyncRelayCommand InstallAssistantCommand { get; }
+    public IRelayCommand CancelInstallationCommand { get; }
     public IRelayCommand StopCommand { get; }
     public IRelayCommand SkipCommand { get; }
     public IRelayCommand AddTaskCommand { get; }
@@ -230,6 +242,7 @@ public partial class MainViewModel : ObservableObject
         LastBatchSummary = "还没有运行记录";
         _store = new(dataRoot ?? ConfigurationStore.DefaultRoot);
         _sources = new(_processes, _store.Root);
+        _installer = new(_store.Root);
         _adapters = new(_processes, _sources);
         RunAllCommand = new AsyncRelayCommand(() => RunTasksAsync(_config.Tasks.Where(t => t.Enabled).ToArray()));
         SaveCommand = new AsyncRelayCommand(() => GuardAsync(SaveAsync));
@@ -237,6 +250,8 @@ public partial class MainViewModel : ObservableObject
         UpdateSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(true, false));
         InstallSourceCommand = new AsyncRelayCommand(() => PrepareSourceAsync(false, true));
         CancelSourceCommand = new RelayCommand(() => _sourceCancellation?.Cancel());
+        InstallAssistantCommand = new AsyncRelayCommand(InstallAssistantAsync);
+        CancelInstallationCommand = new RelayCommand(() => _installCancellation?.Cancel());
         ApplyStartupCommand = new AsyncRelayCommand(async () =>
         {
             if (!StartupAvailable) { StartupEnabled = _savedStartupEnabled; return; }
@@ -375,9 +390,51 @@ public partial class MainViewModel : ObservableObject
             foreach (var card in Games) await GuardAsync(() => RefreshCardAsync(card));
         }
     }
+    private async Task InstallAssistantAsync()
+    {
+        if (!CanInstallAssistant || SelectedGame is not { } card) return;
+        using var cancellation = new CancellationTokenSource();
+        _installCancellation = cancellation;
+        _installationStatus = "正在准备安装…";
+        SourceStateChanged();
+        try
+        {
+            await SaveAsync();
+            var executable = await Task.Run(() => _installer.InstallMaaEndAsync(line =>
+            {
+                _journal.Log(new(DateTimeOffset.Now, "安装", line, GameId: card.Config.Id));
+                _dispatcher.TryEnqueue(() => { _installationStatus = line; RefreshInstallationDetails(); });
+            }, cancellation.Token));
+            card.Config.ToolRunMode = AssistantRunMode.Binary;
+            card.Config.ToolPath = executable;
+            card.Config.ToolGuiPath = "";
+            await SaveAsync();
+            _installationStatus = "安装完成，请打开 MaaEnd 配置连接与日常实例。";
+            Show(_installationStatus);
+        }
+        catch (OperationCanceledException) { _installationStatus = "安装已取消"; Show(_installationStatus); }
+        catch (Exception e)
+        {
+            _installationStatus = "安装失败：" + e.Message;
+            Show(_installationStatus);
+            _journal.Log(new(DateTimeOffset.Now, "错误", _installationStatus, GameId: card.Config.Id));
+        }
+        finally
+        {
+            _installCancellation = null;
+            SourceStateChanged();
+            RefreshConfigurationOptions();
+            foreach (var game in Games) await GuardAsync(() => RefreshCardAsync(game));
+        }
+    }
+    private void RefreshInstallationDetails()
+    {
+        foreach (var name in new[] { nameof(InstallationVisibility), nameof(InstallationBusy), nameof(InstallationBusyVisibility), nameof(InstallationStatus), nameof(CanInstallAssistant) }) OnPropertyChanged(name);
+    }
     private void SourceStateChanged()
     {
         OnPropertyChanged(nameof(SourceBusy)); OnPropertyChanged(nameof(SourceBusyVisibility)); OnPropertyChanged(nameof(IsIdle));
+        RefreshInstallationDetails();
         foreach (var card in Games)
         {
             card.CanLaunch = IsIdle;
@@ -388,6 +445,7 @@ public partial class MainViewModel : ObservableObject
         (card, target) => GuardAsync(async () =>
         {
             if (SourceBusy) throw new InvalidOperationException("请等待源码操作完成");
+            if (InstallationBusy) throw new InvalidOperationException("请等待助手安装完成");
             if (IsBusy && _engine.Snapshot.GameId == card.Config.Id) throw new InvalidOperationException("该游戏正在运行日常");
             var config = JsonSerializer.Deserialize<GameConfig>(JsonSerializer.Serialize(card.Config, JsonDefaults.Options), JsonDefaults.Options)!;
             var result = await Task.Run(() => _launch.LaunchAsync(config, target));
@@ -422,6 +480,7 @@ public partial class MainViewModel : ObservableObject
     private async Task RunTasksAsync(IEnumerable<QueueTaskConfig> tasks) => await GuardAsync(async () =>
     {
         if (SourceBusy) throw new InvalidOperationException("请等待源码操作完成");
+        if (InstallationBusy) throw new InvalidOperationException("请等待助手安装完成");
         var frozen = _config.Clone();
         var requests = tasks.Select(t => new TaskRequest(new() { Id = t.Id, GameId = t.GameId, Name = t.Name, Enabled = t.Enabled }, frozen.Games.First(g => g.Id == t.GameId))).ToArray();
         if (requests.Length == 0) throw new InvalidOperationException("任务队列中没有已启用的任务");
@@ -437,8 +496,8 @@ public partial class MainViewModel : ObservableObject
         Progress = s.Total == 0 ? 0 : 100d * (s.Total - s.Remaining) / s.Total;
         foreach (var g in Games)
         {
-            g.CanLaunch = !(s.IsBusy && s.GameId == g.Config.Id);
-            g.CanRun = !s.IsBusy && g.ConfigurationStatus == GameCardViewModel.ReadyStatus;
+            g.CanLaunch = !InstallationBusy && !SourceBusy && !(s.IsBusy && s.GameId == g.Config.Id);
+            g.CanRun = IsIdle && g.ConfigurationStatus == GameCardViewModel.ReadyStatus;
             if (s.GameId == g.Config.Id) g.DailyStatus = s.State.Chinese();
         }
         if (AwaitingConfirmation) Show(s.Message);
@@ -586,13 +645,13 @@ public partial class MainViewModel : ObservableObject
             throw new InvalidOperationException("请至少选择一个助手");
         return games;
     }
-    public void RequestStop() { _sourceCancellation?.Cancel(); _engine?.Stop(); }
+    public void RequestStop() { _sourceCancellation?.Cancel(); _installCancellation?.Cancel(); _engine?.Stop(); }
     private void OnSelectedPageChanged(string? previous)
     {
         if (previous is not null) _ = SaveIfChangedAsync();
     }
     private void OnSelectedGameChanged(GameCardViewModel? value) => RefreshConfigurationOptions();
     private void OnSelectedHistoryChanged(HistoryRowViewModel? value) => OnPropertyChanged(nameof(HistoryDetails));
-    private void OnIsBusyChanged(bool value) { OnPropertyChanged(nameof(IsIdle)); OnPropertyChanged(nameof(BusyVisibility)); }
+    private void OnIsBusyChanged(bool value) { OnPropertyChanged(nameof(IsIdle)); OnPropertyChanged(nameof(BusyVisibility)); RefreshInstallationDetails(); }
     private void OnAwaitingConfirmationChanged(bool value) => OnPropertyChanged(nameof(ConfirmationVisibility));
 }

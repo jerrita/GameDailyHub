@@ -77,9 +77,28 @@ public sealed partial class MainWindow
         ViewModel.SelectedCompletion = Core.Models.CompletionMode.AdapterEvidence;
         ViewModel.SelectedGame = ViewModel.Games.Single(g => g.Config.AdapterId == "maaend");
         if (ViewModel.ProfileVisibility != Visibility.Visible || ViewModel.ProfileHeader != "实例名称（可选）"
-            || ViewModel.RunModeVisibility != Visibility.Collapsed || !ViewModel.SelectedGame.AssistantIcon.EndsWith("MaaEnd.png"))
+            || ViewModel.RunModeVisibility != Visibility.Collapsed || !ViewModel.SelectedGame.AssistantIcon.EndsWith("MaaEnd.png")
+            || ViewModel.InstallationVisibility != Visibility.Visible || !ViewModel.CanInstallAssistant
+            || !ViewModel.InstallationDirectoryHint.Contains(Path.Combine(ViewModel.DataDirectory, "assistants", "MaaEnd")))
             throw new InvalidOperationException("MaaEnd 配置项或图标错误");
+        var installRoot = Path.Combine(ViewModel.DataDirectory, "assistants", "MaaEnd");
+        foreach (var relative in new[] { "MaaEnd.exe", "agent/go-service.exe", "agent/cpp-algo.exe", "maafw/MaaFramework.dll", "maafw/MaaToolkit.dll" })
+        {
+            var path = Path.Combine(installRoot, relative);
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            await File.WriteAllTextAsync(path, "fixture");
+        }
+        Directory.CreateDirectory(Path.Combine(installRoot, "resource"));
+        await File.WriteAllTextAsync(Path.Combine(installRoot, "interface.json"), "{\"name\":\"MaaEnd\"}");
+        await ViewModel.InstallAssistantCommand.ExecuteAsync(null);
+        var installed = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
+        if (!ViewModel.IsIdle || ViewModel.InstallationBusy || !ViewModel.InstallationStatus.StartsWith("安装完成")
+            || ViewModel.SelectedToolPath != Path.Combine(installRoot, "MaaEnd.exe")
+            || installed.Games.Single(g => g.AdapterId == "maaend").ToolPath != ViewModel.SelectedToolPath)
+            throw new InvalidOperationException("MaaEnd 安装后的路径填充或保存失败：" + ViewModel.Message);
+        Mark("MaaEnd installation path round trip");
         ViewModel.SelectedGame = ViewModel.Games[0];
+        if (ViewModel.InstallationVisibility != Visibility.Collapsed || ViewModel.CanInstallAssistant) throw new InvalidOperationException("MaaEnd 安装入口应按所选助手显示");
         Mark("Select BetterGI");
         AdvancedOptions.IsExpanded = true;
         foreach (var options in ((StackPanel)AdvancedOptions.Content).Children.OfType<Expander>()) options.IsExpanded = true;
@@ -144,9 +163,9 @@ public sealed partial class MainWindow
         await Task.Delay(150);
         if (Math.Abs(homeScroll.VerticalOffset - homeOffset) > 2) throw new InvalidOperationException("后退未保留页面滚动位置");
         TryGoForward();
-        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source", "zzz-source" })
+        foreach (var page in new[] { "home", "tasks", "config", "logs", "schedule", "settings", "source", "zzz-source", "maaend-install" })
         {
-            ViewModel.SelectedPage = page is "source" or "zzz-source" ? "config" : page;
+            ViewModel.SelectedPage = page is "source" or "zzz-source" or "maaend-install" ? "config" : page;
             if (page is "source" or "zzz-source")
             {
                 var index = page == "source" ? 1 : 3;
@@ -160,8 +179,9 @@ public sealed partial class MainWindow
                     throw new InvalidOperationException("源码模式与路径绑定或持久化失败");
                 ViewModel.HasMessage = false;
             }
+            if (page == "maaend-install") ViewModel.SelectedGame = ViewModel.Games.Single(g => g.Config.AdapterId == "maaend");
             Mark("Render " + page);
-            VerifyNavigation(page is "source" or "zzz-source" ? "config" : page);
+            VerifyNavigation(page is "source" or "zzz-source" or "maaend-install" ? "config" : page);
             RootGrid.UpdateLayout();
             await Task.Delay(350);
             if (page == "home" && homeScroll.VerticalOffset > 2) throw new InvalidOperationException("新导航未重置页面滚动位置");

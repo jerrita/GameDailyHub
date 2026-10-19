@@ -62,6 +62,8 @@
 
 真实游戏、不同 MXU 版本及自动更新交接尚需本机联调。
 
+MaaEnd 一键安装使用 GitHub [最新正式版 API](https://docs.github.com/en/rest/releases/releases#get-the-latest-release)，选择发布附件 `MaaEnd-win-x86_64-<tag>.zip`，校验 API 中的文件大小和 SHA-256。下载与解压使用同一助手根目录下的临时目录；验证程序、Agent、MaaFramework 及项目标识后再移动为 `assistants/MaaEnd`。拒绝 ZIP 越界路径、链接、重复文件及无效包。已有安装直接使用，非空未知目录保留并报错，不覆盖助手配置。
+
 ## 共同策略
 
 源码模式使用 [March7th 官方 uv 工作流与 Python 入口](https://github.com/moesnow/March7thAssistant/blob/main/README_EN.md)、[OK-WW main.py](https://github.com/ok-oldking/ok-wuthering-waves/blob/master/main.py) 及其 `requirements.txt`。环境管理遵循 [uv 虚拟环境文档](https://docs.astral.sh/uv/pip/environments/)，包索引通过命令参数指定[清华镜像](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)，仅作用于该次安装。March7th 的 `uv sync` 同时覆盖项目中名为 `pypi` 的索引。启动使用 uv 管理的 `.venv/Scripts/python.exe`，使日常进程继续直接归属现有 Job Object。

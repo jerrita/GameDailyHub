@@ -41,6 +41,15 @@
                         <TextBox Header="{x:Bind ViewModel.ToolPathHeader, Mode=OneWay}" PlaceholderText="留空自动查找" Text="{x:Bind ViewModel.SelectedToolPath, Mode=TwoWay}"/>
                         <Button Grid.Column="1" Content="浏览…" Tag="ToolPath" Click="Browse_Click" VerticalAlignment="Bottom"/>
                     </Grid>
+                    <StackPanel x:Name="AssistantInstallationPanel" Spacing="8" Visibility="{x:Bind ViewModel.InstallationVisibility, Mode=OneWay}">
+                        <Button Content="一键安装" Command="{x:Bind ViewModel.InstallAssistantCommand}" IsEnabled="{x:Bind ViewModel.CanInstallAssistant, Mode=OneWay}"/>
+                        <TextBlock Text="{x:Bind ViewModel.InstallationDirectoryHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        <TextBlock Text="{x:Bind ViewModel.InstallationStatus, Mode=OneWay}" TextWrapping="Wrap"/>
+                        <StackPanel Spacing="8" Visibility="{x:Bind ViewModel.InstallationBusyVisibility, Mode=OneWay}">
+                            <ProgressBar IsIndeterminate="True"/>
+                            <Button Content="取消安装" Command="{x:Bind ViewModel.CancelInstallationCommand}"/>
+                        </StackPanel>
+                    </StackPanel>
                     <StackPanel Spacing="6" Visibility="{x:Bind ViewModel.ProfileVisibility, Mode=OneWay}">
                         <TextBox Header="{x:Bind ViewModel.ProfileHeader, Mode=OneWay}" Text="{Binding SelectedGame.Config.Daily.ProfileName, Mode=TwoWay}"/>
                         <TextBlock Text="{x:Bind ViewModel.ProfileHint, Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
