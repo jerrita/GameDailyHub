@@ -9,7 +9,9 @@ public sealed record SourceAssistantDefinition(string Folder, string Repository,
 public sealed class SourceAssistantService(ProcessService processes, string dataRoot)
 {
     public const string PackageIndex = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple";
+    private const string MissingGitMessage = "源码运行需要 Git，请从 https://git-scm.com/install/windows 下载 Windows x64 版，安装并加入 PATH 后重启 GameDailyHub";
     private static readonly ConcurrentDictionary<string, SemaphoreSlim> Gates = new(StringComparer.OrdinalIgnoreCase);
+    public static bool HasGit => LocateExecutable("git") is not null;
     public static bool Supports(string adapterId) => adapterId is "march7th" or "okww" or "zzz";
     public static SourceAssistantDefinition Definition(string adapterId) => adapterId switch
     {
@@ -27,6 +29,7 @@ public sealed class SourceAssistantService(ProcessService processes, string data
     {
         if (!Supports(game.AdapterId)) return ["该助手暂不支持源码运行"];
         var errors = new List<string>();
+        if (!HasGit) errors.Add(MissingGitMessage);
         if (!File.Exists(EntryPath(game, gui))) errors.Add("源码入口不存在，请先克隆代码或选择源码目录");
         if (!File.Exists(PythonPath(game))) errors.Add("源码环境未安装，请先安装环境");
         return errors;
@@ -69,12 +72,12 @@ public sealed class SourceAssistantService(ProcessService processes, string data
         if (!await gate.WaitAsync(0, token)) throw new InvalidOperationException("该源码目录正在处理其他操作");
         try
         {
+            var git = FindExecutable("git");
             EnsureStopped(game);
             var directory = DirectoryFor(game);
             var definition = Definition(game.AdapterId);
             if (updateCode)
             {
-                var git = FindExecutable("git");
                 if (File.Exists(Path.Combine(directory, ".git")) || Directory.Exists(Path.Combine(directory, ".git")))
                 {
                     await RunAsync(git, ["-c", "core.longpaths=true", "-C", directory, "pull", "--ff-only", "--progress"], directory, log, token);
@@ -139,18 +142,24 @@ public sealed class SourceAssistantService(ProcessService processes, string data
     {
         if (processes.FindRunning(PythonPath(game)).Count > 0) throw new InvalidOperationException("源码助手正在运行，请关闭后重试");
     }
-    public static string FindExecutable(string name)
+    public static string FindExecutable(string name) => LocateExecutable(name)
+        ?? throw new InvalidOperationException(name == "git" ? MissingGitMessage : "找不到 " + name + "，请确认已安装并加入 PATH 后重启 GameDailyHub");
+    private static string? LocateExecutable(string name)
     {
-        foreach (var directory in ToolSearchPath().Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        var searchPath = name == "uv" ? ToolSearchPath() : Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var directory in searchPath.Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             var path = Path.Combine(directory.Trim().Trim('"'), name + ".exe");
             if (File.Exists(path)) return Path.GetFullPath(path);
         }
-        throw new InvalidOperationException("找不到 " + name + "，请确认已安装并加入 PATH 后重启 GameDailyHub");
+        return null;
     }
-    private static string ToolSearchPath() => string.Join(Path.PathSeparator,
-        new[] { Path.Combine(AppContext.BaseDirectory, "tools", "uv"), Path.Combine(AppContext.BaseDirectory, "tools", "git", "cmd") }
-            .Where(Directory.Exists).Append(Environment.GetEnvironmentVariable("PATH") ?? ""));
+    private static string ToolSearchPath()
+    {
+        var uvDirectory = Path.Combine(AppContext.BaseDirectory, "tools", "uv");
+        var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+        return Directory.Exists(uvDirectory) ? uvDirectory + Path.PathSeparator + path : path;
+    }
     private async Task RunAsync(string path, string[] arguments, string directory, Action<string> log, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();

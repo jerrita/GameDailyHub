@@ -15,7 +15,9 @@ try {
     & $msbuild src/GameDailyHub.App/GameDailyHub.App.csproj /t:Publish /p:Configuration=Release /p:Platform=x64 /p:HubUiTest=false "/p:PublishDir=$publishDirectory" /m:1 /nodeReuse:false /v:minimal /nologo
     if ($LASTEXITCODE -ne 0) { throw '发布失败。' }
     if ((Get-GameDailyHubExecutionLevel (Join-Path $publishDirectory 'GameDailyHub.App.exe')) -ne 'requireAdministrator') { throw '发布程序未声明管理员权限。' }
-    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'artifacts/tools/win-x64') -Destination (Join-Path $publishDirectory 'tools') -Recurse
+    $toolsDirectory = Join-Path $publishDirectory 'tools'
+    New-Item -ItemType Directory -Path $toolsDirectory -Force | Out-Null
+    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'artifacts/tools/win-x64/uv') -Destination $toolsDirectory -Recurse
     Copy-Item -LiteralPath (Join-Path $workspaceRoot 'README.md') -Destination $publishDirectory
     $docsDirectory = Join-Path $publishDirectory 'docs'
     New-Item -ItemType Directory -Path $docsDirectory -Force | Out-Null

@@ -9,12 +9,6 @@ $bundles = @(
         Url = 'https://github.com/astral-sh/uv/releases/download/0.13.1/uv-x86_64-pc-windows-msvc.zip'
         Sha256 = '3b2661a463a5baea7f5076ea2b25ab71d77f36a6c0d809e5350651792f80a672'
         Executable = 'uv.exe'
-    },
-    @{
-        Name = 'git'; Version = '2.56.0.2'
-        Url = 'https://github.com/git-for-windows/git/releases/download/v2.56.0.windows.2/MinGit-2.56.0.2-64-bit.zip'
-        Sha256 = 'da35e72aa21c005a5a0d298cfbae110bc1609a815730ea0dde84b01a1b3cd3be'
-        Executable = 'cmd/git.exe'
     }
 )
 foreach ($bundle in $bundles) {

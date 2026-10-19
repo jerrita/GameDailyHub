@@ -51,7 +51,7 @@ jobs:
           @'
           Windows x64 版本。解压完整 ZIP 后运行 GameDailyHub.App.exe，保留同目录依赖文件。
 
-          已包含 Windows x64 版 uv 与 Git，源码模式可直接使用。
+          已包含 Windows x64 版 uv。源码运行需安装 [Git（Windows x64）](https://git-scm.com/install/windows)，并加入 PATH。
 
           若环境缺失请安装：
           - [.NET 10 Runtime（x64）](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0)

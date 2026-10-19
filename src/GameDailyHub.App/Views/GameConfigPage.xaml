@@ -22,6 +22,7 @@
                             <TextBox x:Name="SourceDirectoryEditor" Header="源码位置（可选）" PlaceholderText="留空使用默认位置" Text="{x:Bind ViewModel.SelectedSourceDirectory, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
                             <TextBlock Text="{x:Bind ViewModel.SourceDirectoryHint, Mode=OneWay}" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
                             <TextBlock Text="{x:Bind ViewModel.SourceStatus, Mode=OneWay}" TextWrapping="Wrap"/>
+                            <HyperlinkButton Content="源码运行需要 Git，点击下载 Windows x64 版" NavigateUri="https://git-scm.com/install/windows" Visibility="{x:Bind ViewModel.GitDownloadVisibility, Mode=OneWay}" HorizontalAlignment="Left" Padding="0"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
                                 <Button Content="获取最新代码" Command="{x:Bind ViewModel.UpdateSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>
                                 <Button Content="安装环境" Command="{x:Bind ViewModel.InstallSourceCommand}" IsEnabled="{x:Bind ViewModel.IsIdle, Mode=OneWay}"/>

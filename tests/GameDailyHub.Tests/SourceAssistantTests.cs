@@ -113,10 +113,54 @@ public sealed class SourceAssistantTests : IDisposable
     public void SourceValidationRequiresEnvironmentAndRejectsUnsupportedAssistant()
     {
         var game = new GameConfig { AdapterId = "okww", ToolRunMode = AssistantRunMode.Source };
-        Assert.Equal(2, Sources.Validate(game, true).Count);
+        var errors = Sources.Validate(game, true);
+        Assert.Contains("源码入口不存在，请先克隆代码或选择源码目录", errors);
+        Assert.Contains("源码环境未安装，请先安装环境", errors);
         var config = AppConfig.CreateDefault();
         config.Games[0].ToolRunMode = AssistantRunMode.Source;
         Assert.Throws<InvalidDataException>(() => ConfigurationStore.Validate(config));
+    }
+    [Theory]
+    [InlineData("march7th")]
+    [InlineData("okww")]
+    [InlineData("zzz")]
+    public async Task MissingGitBlocksPreparedSourceLaunchAndMaintenanceWithDownloadGuidance(string adapter)
+    {
+        var game = CreateSource(adapter);
+        game.Normal.Target = LaunchTarget.Assistant;
+        var originalPath = Environment.GetEnvironmentVariable("PATH");
+        try
+        {
+            Environment.SetEnvironmentVariable("PATH", "");
+            Assert.False(SourceAssistantService.HasGit);
+            const string downloadUrl = "https://git-scm.com/install/windows";
+            foreach (var gui in new[] { true, false })
+                Assert.Contains(downloadUrl, Assert.Single(Sources.Validate(game, gui)));
+            var tool = new AdapterRegistry(_processes, Sources).Get(adapter);
+            foreach (var daily in new[] { true, false })
+                Assert.Contains((await tool.ValidateAsync(game, daily, default)).Errors, error => error.Contains(downloadUrl));
+            var launchError = await Assert.ThrowsAsync<InvalidOperationException>(() => Sources.LaunchGuiAsync(game, default));
+            Assert.Contains(downloadUrl, launchError.Message);
+            var dailyError = await Assert.ThrowsAsync<InvalidOperationException>(() => Sources.StartDailyAsync(game, false, "", default));
+            Assert.Contains(downloadUrl, dailyError.Message);
+            foreach (var updateCode in new[] { true, false })
+            {
+                var prepareError = await Assert.ThrowsAsync<InvalidOperationException>(() => Sources.PrepareAsync(game, updateCode, !updateCode, _ => { }, default));
+                Assert.Contains(downloadUrl, prepareError.Message);
+            }
+            Assert.False(File.Exists(Path.Combine(Sources.DirectoryFor(game), "fixture-entry.txt")));
+
+            var gitDirectory = Path.Combine(_root, "local tools");
+            Directory.CreateDirectory(gitDirectory);
+            var git = Path.Combine(gitDirectory, "git.exe");
+            File.WriteAllText(git, "");
+            Environment.SetEnvironmentVariable("PATH", '"' + gitDirectory + '"');
+            Assert.True(SourceAssistantService.HasGit);
+            Assert.Equal(git, SourceAssistantService.FindExecutable("git"));
+            Assert.Empty(Sources.Validate(game, true));
+            Assert.Empty(Sources.Validate(game, false));
+        }
+        finally { Environment.SetEnvironmentVariable("PATH", originalPath); }
     }
     public void Dispose()
     {

@@ -144,6 +144,7 @@ public partial class MainViewModel : ObservableObject
     public string SourceDirectoryHint => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? "位置：" + _sources.DirectoryFor(game.Config) : "";
     public string SourceDirectory => SelectedGame is { } game && SourceAssistantService.Supports(game.Config.AdapterId) ? _sources.DirectoryFor(game.Config) : "";
     public bool CanOpenSourceDirectory => Directory.Exists(SourceDirectory);
+    public Visibility GitDownloadVisibility => SourceAssistantService.HasGit ? Visibility.Collapsed : Visibility.Visible;
     public string SourceOutput => _sourceOperations.TryGetValue(SourceDirectory, out var operation) ? operation.Output : "";
     public Visibility SourceOutputVisibility => SourceOutput.Length > 0 ? Visibility.Visible : Visibility.Collapsed;
     public string SourceStatus
@@ -159,7 +160,7 @@ public partial class MainViewModel : ObservableObject
     }
     private void RefreshSourceDetails()
     {
-        foreach (var name in new[] { nameof(SourceStatus), nameof(CanOpenSourceDirectory), nameof(SourceOutput), nameof(SourceOutputVisibility) }) OnPropertyChanged(name);
+        foreach (var name in new[] { nameof(SourceStatus), nameof(CanOpenSourceDirectory), nameof(GitDownloadVisibility), nameof(SourceOutput), nameof(SourceOutputVisibility) }) OnPropertyChanged(name);
     }
     public Visibility SelectionVisibility => SelectedGame is null ? Visibility.Collapsed : Visibility.Visible;
     public string SelectedToolPath
