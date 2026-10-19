@@ -24,5 +24,7 @@ try {
     Copy-Item -LiteralPath (Join-Path $workspaceRoot 'docs/INTEGRATIONS.md') -Destination $docsDirectory
     Copy-Item -LiteralPath (Join-Path $workspaceRoot 'docs/VERIFICATION.md') -Destination $docsDirectory
     Copy-Item -LiteralPath (Join-Path $workspaceRoot 'docs/SETTINGS.md') -Destination $docsDirectory
+    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'docs/USAGE.md') -Destination $docsDirectory
+    Copy-Item -LiteralPath (Join-Path $workspaceRoot 'docs/DEVELOPMENT.md') -Destination $docsDirectory
     Write-Output "发布目录：$publishDirectory"
 } finally { Pop-Location }
