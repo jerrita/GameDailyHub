@@ -6,7 +6,7 @@
 
 发布目录为 `artifacts/publish/win-x64`。运行 `GameDailyHub.App.exe` 时由 Windows 请求管理员权限，助手和游戏继承 Hub 的权限。请保留同目录依赖文件。
 
-目标系统为 Windows 10 22H2、Windows 11 x64。发布包使用共享运行库，运行前需安装 [.NET 10 Runtime（x64）](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0) 和 [Windows App Runtime 2.5.1 或兼容更新版本（x64）](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)，无需安装开发用 SDK。当前本机验证环境为 Windows 11 25H2；其他系统及纯净机器仍需兼容性验证。
+目标系统为 Windows 10 22H2、Windows 11 x64。发布包使用共享运行库，若环境缺失请安装 [.NET 10 Runtime（x64）](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0) 和 [Windows App Runtime 2.5.1 或兼容更新版本（x64）](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)，无需安装开发用 SDK。当前本机验证环境为 Windows 11 25H2；其他系统及纯净机器仍需兼容性验证。
 
 首次启动打开「游戏」，游戏程序和助手程序路径留空时自动查找默认安装位置，也可手动指定。改动在离开页面、关闭应用或调整定时与外观时自动保存。BetterGI 另需填写一条龙配置名称；March7th 的工作流可留空运行默认日常。
 
@@ -42,11 +42,11 @@
 March7thAssistant、OK-WW、绝区零一条龙可在「游戏」选择安装版或源码运行；BetterGI 使用安装版。源码位置可手动填写，留空分别使用 `%LocalAppData%/GameDailyHub/assistants/March7thAssistant`、`%LocalAppData%/GameDailyHub/assistants/ok-wuthering-waves`、`%LocalAppData%/GameDailyHub/assistants/ZenlessZoneZero-OneDragon`，跟随 Hub 的程序数据目录。
 
 - **克隆 / 更新代码**：从官方 Git 仓库使用 `--depth 1` 浅克隆（含子模块）；已有仓库使用 `git pull --ff-only` 更新，并初始化子模块。非空且未包含 Git 仓库的目录会提示重新选择。
-- **安装环境**：安装前自动检查并启用 Windows 长路径支持，配置失败时停止安装并显示原因。使用已安装的 uv 创建源码目录内的 `.venv`。March7th 与 OK-WW 使用 Python 3.12，绝区零一条龙使用 Python 3.11。March7th 与绝区零一条龙优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
+- **安装环境**：安装前自动检查并启用 Windows 长路径支持，配置失败时停止安装并显示原因。使用 uv 创建源码目录内的 `.venv`。March7th 与 OK-WW 使用 Python 3.12，绝区零一条龙使用 Python 3.11。March7th 与绝区零一条龙优先使用 `uv sync`，其余使用 `uv pip install -r requirements.txt`，包索引使用[清华源](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)。
 
 操作进度写入运行日志，可取消当前源码操作。代码和环境准备完成后，使用卡片上的「助手」按钮打开界面。
 
-uv、Git 须已加入 PATH。源码模式的「启动助手」使用虚拟环境运行 March7th 的 `app.py` 或 OK-WW 的 `main.py`；这两款助手的「自动助手」运行 `main.py` 并沿用日常参数、配置校验和结果判定。绝区零使用下文所列官方入口。工作目录固定为源码目录；助手运行期间须先关闭再更新代码或环境。
+发布包的 `tools` 目录包含 Windows x64 版 uv 0.13.1 与 Git 2.56.0.2（MinGit）。Hub 优先使用随包工具，并将工具目录加入助手子进程的 PATH；随包工具缺失时查找系统 PATH。源码模式的「启动助手」使用虚拟环境运行 March7th 的 `app.py` 或 OK-WW 的 `main.py`；这两款助手的「自动助手」运行 `main.py` 并沿用日常参数、配置校验和结果判定。绝区零使用下文所列官方入口。工作目录固定为源码目录；助手运行期间须先关闭再更新代码或环境。
 
 ### BetterGI
 

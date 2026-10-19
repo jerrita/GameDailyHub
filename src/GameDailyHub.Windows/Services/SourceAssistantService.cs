@@ -35,7 +35,7 @@ public sealed class SourceAssistantService(ProcessService processes, string data
         + (string.IsNullOrWhiteSpace(arguments) ? "" : " " + arguments);
     private Dictionary<string, string> RuntimeEnvironment(GameConfig game)
     {
-        var environment = new Dictionary<string, string> { ["PYTHONIOENCODING"] = "utf-8" };
+        var environment = new Dictionary<string, string> { ["PYTHONIOENCODING"] = "utf-8", ["PATH"] = ToolSearchPath() };
         if (game.AdapterId == "zzz") environment["PYTHONPATH"] = Path.Combine(DirectoryFor(game), "src");
         return environment;
     }
@@ -141,19 +141,22 @@ public sealed class SourceAssistantService(ProcessService processes, string data
     }
     public static string FindExecutable(string name)
     {
-        foreach (var directory in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+        foreach (var directory in ToolSearchPath().Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
         {
             var path = Path.Combine(directory.Trim().Trim('"'), name + ".exe");
             if (File.Exists(path)) return Path.GetFullPath(path);
         }
         throw new InvalidOperationException("找不到 " + name + "，请确认已安装并加入 PATH 后重启 GameDailyHub");
     }
+    private static string ToolSearchPath() => string.Join(Path.PathSeparator,
+        new[] { Path.Combine(AppContext.BaseDirectory, "tools", "uv"), Path.Combine(AppContext.BaseDirectory, "tools", "git", "cmd") }
+            .Where(Directory.Exists).Append(Environment.GetEnvironmentVariable("PATH") ?? ""));
     private async Task RunAsync(string path, string[] arguments, string directory, Action<string> log, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         log(Path.GetFileNameWithoutExtension(path) + " " + string.Join(" ", arguments.Select(CommandArguments.Quote)));
         await using var session = processes.StartOwned(path, string.Join(" ", arguments.Select(CommandArguments.Quote)), directory,
-            new Dictionary<string, string> { ["UV_PROJECT_ENVIRONMENT"] = Path.Combine(directory, ".venv"), ["UV_DEFAULT_INDEX"] = PackageIndex, ["GIT_TERMINAL_PROMPT"] = "0" });
+            new Dictionary<string, string> { ["PATH"] = ToolSearchPath(), ["UV_PROJECT_ENVIRONMENT"] = Path.Combine(directory, ".venv"), ["UV_DEFAULT_INDEX"] = PackageIndex, ["GIT_TERMINAL_PROMPT"] = "0" });
         while (!session.HasExited)
         {
             while (session.Lines.Reader.TryRead(out var line)) log(line);
