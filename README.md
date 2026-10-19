@@ -1,6 +1,6 @@
 # GameDailyHub
 
-原生 WinUI 3 二游启动与一条龙管理器。固定支持原神 / BetterGI、崩坏：星穹铁道 / March7thAssistant、鸣潮 / OK-WW、绝区零 / ZenlessZoneZero-OneDragon。
+原生 WinUI 3 二游启动与一条龙管理器。固定支持原神 / BetterGI、崩坏：星穹铁道 / March7thAssistant、鸣潮 / OK-WW、绝区零 / ZenlessZoneZero-OneDragon、明日方舟：终末地 / MaaEnd。
 
 ## 运行
 
@@ -31,6 +31,7 @@
 | 崩坏：星穹铁道 | `March7th Assistant.exe` | `March7th Launcher.exe` | `main`；命名工作流使用 `--workflow-name "名称"` |
 | 鸣潮 | 本机 `ok-ww.exe` | 按实际安装情况选择 | `-t 1` |
 | 绝区零 | `OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe` | 可留空 | 安装版 `--onedragon`；源码调用官方应用入口 |
+| 明日方舟：终末地 | `MaaEnd.exe`（MXU 版） | 可留空 | `--autostart --quit-after-run`；指定实例附加 `--instance "名称"` |
 
 助手路径留空时，依次检查 `%LocalAppData%/Programs`、`%ProgramFiles%`、`%ProgramFiles(x86)%`、`%LocalAppData%` 和 Hub 所在目录下的 `BetterGI/BetterGI.exe`、`March7thAssistant/March7th Assistant.exe`、`ok-ww/ok-ww.exe`、`ZenlessZoneZero-OneDragon/OneDragon-RuntimeLauncher.exe` 或 `OneDragon-Launcher.exe`。找到后显示并保存实际路径；手动填写的路径始终优先。March7th 为解压使用，可放在 Hub 同目录的 `March7thAssistant` 文件夹，或手动选择。未找到时提示选择已安装的助手。
 
@@ -94,6 +95,14 @@ scheduled_tasks: []
 源码界面入口为 `src/zzz_od/gui/app.py`，日常入口为 `src/zzz_od/application/zzz_application_launcher.py`，默认日常参数为空，使用助手已启用的实例和应用组。Hub 设置 `PYTHONPATH=<源码目录>/src`，使用 `.venv/Scripts/python.exe` 直接运行。需要限定账号实例时，可在自定义参数填写 `--instance 1,2`；安装版需同时保留 `--onedragon`。
 
 内置判定读取本轮进程输出：子任务失败、异常退出优先判失败；顶层一条龙报告「全部结束」且进程正常退出后，等待人工确认。助手的应用组会继续处理失败的子任务，因此最终流程结束仍需核对。缺少结束证据时同样等待人工确认。Hub 默认不传关闭游戏或电源操作参数。助手配置导入导出包含 Hub 日常设置及 `config` 下的用户 YAML 配置，支持账号实例、应用组和自定义战斗配置；示例、合并缓存、项目与仓库配置及运行记录不包含。
+
+### MaaEnd
+
+使用官方 Windows MXU 版，选择完整安装目录中的 `MaaEnd.exe`，也支持该目录内的 `mxu.exe`。助手路径留空时按默认安装根目录查找 `MaaEnd/MaaEnd.exe` 或 `MaaEnd/mxu.exe`。游戏程序手动选择本机客户端。本次接入使用安装版。
+
+先在 MaaEnd 内配置连接、任务和实例并保存，关闭“手动启动时也自动执行”及所有启用的定时策略。Hub 只读取校验。普通启动使用空参数；自动日常使用 `--autostart --quit-after-run`，实例名称留空时使用 MaaEnd 的默认自动执行实例，填写后附加 `--instance "名称"`。实例名称缺失或重复会拦截启动，避免 MXU 回退执行其它实例。自定义命令同样须包含自动运行与完成后退出参数。
+
+默认跟踪本次启动后 `debug/日期-序号.log` 新增的界面日志。MXU 在运行状态结束后可退出 0，失败任务也可能经过这一分支，因此流程结束和正常退出后仍须核对实例内各任务并人工确认；缺失日志同样进入人工确认。停止、超时和跳过沿用队列的进程清理。配置导入导出包含 Hub 日常设置和 `config/mxu-MaaEnd.json`；恢复实例与任务时按 ID 保留本机绝对路径。更新器交接和真实游戏执行尚需本机联调。
 
 ## 完成、安全与人工确认
 

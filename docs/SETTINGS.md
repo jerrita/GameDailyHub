@@ -44,6 +44,7 @@ BetterGI 安装目录名称依据[官方安装器配置](https://github.com/baba
 | March7thAssistant | `config.yaml` |
 | OK-WW | `configs/*.json` |
 | 绝区零一条龙 | `config/**/*.yml`、`config/**/*.yaml`，包含全局设置、账号实例、应用组、自定义战斗配置；排除 `.sample.yml`、`.merged.yml`、`config/project.yml`、`config/repository.yml` 和 `run_record` 目录 |
+| MaaEnd | `config/mxu-MaaEnd.json`，包含 MXU 设置、实例和任务；实例及任务按 ID 保留对应的本机绝对路径 |
 
 助手目录在二进制模式下为助手可执行文件所在目录，源码模式下为源码目录。文件路径只接受上表模式，导入时拒绝其它路径及越界路径。
 

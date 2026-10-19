@@ -75,6 +75,7 @@ public static partial class AssistantProfileService
             "march7th" => normalized == "config.yaml",
             "bettergi" => normalized == "User/config.json" || OneLevel(normalized, "User/OneDragon/", ".json"),
             "okww" => OneLevel(normalized, "configs/", ".json"),
+            "maaend" => normalized == "config/mxu-MaaEnd.json",
             "zzz" => normalized.StartsWith("config/", StringComparison.Ordinal)
                 && (normalized.EndsWith(".yml", StringComparison.OrdinalIgnoreCase) || normalized.EndsWith(".yaml", StringComparison.OrdinalIgnoreCase))
                 && !normalized.EndsWith(".sample.yml", StringComparison.OrdinalIgnoreCase)
@@ -97,6 +98,7 @@ public static partial class AssistantProfileService
             "march7th" => ["config.yaml"],
             "bettergi" => new[] { "User/config.json" }.Concat(In("User/OneDragon", "*.json")),
             "okww" => In("configs", "*.json"),
+            "maaend" => ["config/mxu-MaaEnd.json"],
             "zzz" => Directory.Exists(Path.Combine(root, "config"))
                 ? Directory.EnumerateFiles(Path.Combine(root, "config"), "*", new EnumerationOptions { RecurseSubdirectories = true, AttributesToSkip = FileAttributes.ReparsePoint })
                     .Select(f => Path.GetRelativePath(root, f).Replace('\\', '/')).Where(f => IsAllowed(adapterId, f)) : [],
@@ -199,7 +201,7 @@ public static partial class AssistantProfileService
                 if (!full.StartsWith(Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
                     throw new InvalidDataException("配置文件路径越界：" + file.Path);
                 var existing = File.Exists(full) ? File.ReadAllText(full) : null;
-                pending.Add((full, file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? MergeJson(file.Content, existing, file.Path)
+                pending.Add((full, file.Path.EndsWith(".json", StringComparison.OrdinalIgnoreCase) ? MergeJson(file.Content, existing, file.Path, game.AdapterId == "maaend")
                     : game.AdapterId == "zzz" ? MergeZzzYaml(file.Content, existing) : MergeYaml(file.Content, existing)));
             }
         }
@@ -297,7 +299,7 @@ public static partial class AssistantProfileService
 
     private static bool IsPath(JsonNode? node) => node is JsonValue value && value.TryGetValue<string>(out var text) && AbsolutePath().IsMatch(text);
 
-    private static string MergeJson(string incoming, string? existing, string name)
+    private static string MergeJson(string incoming, string? existing, string name, bool matchArrayItems = false)
     {
         JsonNode? imported, current = null;
         try { imported = JsonNode.Parse(incoming, null, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }); }
@@ -308,10 +310,10 @@ public static partial class AssistantProfileService
             try { current = JsonNode.Parse(existing, null, new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true }); }
             catch (JsonException) { current = null; }
         }
-        LocalizeJson(root, current as JsonObject);
+        LocalizeJson(root, current as JsonObject, matchArrayItems);
         return root.ToJsonString(FileJson);
     }
-    private static void LocalizeJson(JsonObject incoming, JsonObject? existing)
+    private static void LocalizeJson(JsonObject incoming, JsonObject? existing, bool matchArrayItems = false)
     {
         foreach (var key in incoming.Select(p => p.Key).ToArray())
         {
@@ -319,7 +321,25 @@ public static partial class AssistantProfileService
             var local = existing is not null && existing.TryGetPropertyValue(key, out var found) ? found : null;
             switch (node)
             {
-                case JsonObject child: LocalizeJson(child, local as JsonObject); break;
+                case JsonObject child: LocalizeJson(child, local as JsonObject, matchArrayItems); break;
+                case JsonArray array when matchArrayItems:
+                    for (var i = array.Count - 1; i >= 0; i--)
+                    {
+                        var items = local as JsonArray;
+                        if (array[i] is JsonObject item)
+                        {
+                            // Instance/task IDs identify local paths across reordered arrays.
+                            var localItem = items?.OfType<JsonObject>().FirstOrDefault(candidate =>
+                                item["id"] is not null && JsonNode.DeepEquals(item["id"], candidate["id"]));
+                            LocalizeJson(item, localItem, true);
+                        }
+                        else if (IsPath(array[i]))
+                        {
+                            if (items is not null && i < items.Count && IsPath(items[i])) array[i] = items[i]?.DeepClone();
+                            else array.RemoveAt(i);
+                        }
+                    }
+                    break;
                 case JsonArray array when array.Any(IsPath) || array.OfType<JsonObject>().Any(ContainsPath):
                     if (local is JsonArray keep) incoming[key] = keep.DeepClone(); else incoming.Remove(key);
                     break;

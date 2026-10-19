@@ -78,7 +78,8 @@ public static class GameCatalog
         new("bettergi", "原神", "BetterGI"),
         new("march7th", "崩坏：星穹铁道", "March7thAssistant"),
         new("okww", "鸣潮", "OK-WW"),
-        new("zzz", "绝区零", "绝区零一条龙")
+        new("zzz", "绝区零", "绝区零一条龙"),
+        new("maaend", "明日方舟：终末地", "MaaEnd")
     ]);
     public static bool Supports(string adapterId) => Games.Any(game => game.AdapterId == adapterId);
 }

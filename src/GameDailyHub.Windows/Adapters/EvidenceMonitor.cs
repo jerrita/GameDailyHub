@@ -60,6 +60,11 @@ public sealed class EvidenceMonitor
                 if (Match(line, @"指令\[\s*一条龙\s*\] 执行成功 返回状态 全部结束\s*$")) { _started = true; _ended = true; }
                 if (Match(line, @"\[(?:ERROR|CRITICAL)\]") || line.Contains("Traceback (most recent call last)") || line.Contains("执行失败 返回状态")) _failed = true;
                 break;
+            case "maaend":
+                if (Match(line, @"\[App\] 开机自启动：激活配置并启动任务:")) _started = true;
+                if (_started && Match(line, @"\[App\] 自动执行任务完成，关闭自身\s*$")) _ended = true;
+                if (Match(line, @"\bERROR\b") || line.Contains("任务启动异常:")) _failed = true;
+                break;
         }
     }
     public AdapterResult? Evaluate(bool exited, int? exitCode, bool discontinuity = false)
@@ -80,6 +85,11 @@ public sealed class EvidenceMonitor
             {
                 if (!exited) return null;
                 return new(RunState.Unknown, "绝区零一条龙已报告流程结束，请核对各子任务结果后确认", true, exitCode, evidence);
+            }
+            if (_adapter == "maaend" && _profile.Completion == CompletionMode.AdapterEvidence)
+            {
+                if (!exited) return null;
+                return new(RunState.Unknown, "MaaEnd 已报告自动执行结束，请核对实例内各任务结果后确认", true, exitCode, evidence);
             }
             return new(RunState.Success, "已取得本轮日常完成证据", true, exitCode, evidence);
         }

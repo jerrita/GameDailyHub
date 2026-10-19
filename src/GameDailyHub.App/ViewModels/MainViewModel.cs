@@ -101,13 +101,13 @@ public partial class MainViewModel : ObservableObject
         get => SelectedGame?.Config.Daily.Completion ?? CompletionMode.AdapterEvidence;
         set { if (SelectedGame is null || SelectedGame.Config.Daily.Completion == value) return; SelectedGame.Config.Daily.Completion = value; RefreshConfigurationOptions(); }
     }
-    public Visibility ProfileVisibility => SelectedGame?.Config.AdapterId is "bettergi" or "march7th" && SelectedTrigger == TriggerMode.VerifiedCommand ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility ProfileVisibility => SelectedGame?.Config.AdapterId is "bettergi" or "march7th" or "maaend" && SelectedTrigger == TriggerMode.VerifiedCommand ? Visibility.Visible : Visibility.Collapsed;
     public Visibility AutomaticVisibility => SelectedTrigger != TriggerMode.Manual ? Visibility.Visible : Visibility.Collapsed;
     public Visibility CustomArgumentsVisibility => SelectedTrigger == TriggerMode.CustomCommand ? Visibility.Visible : Visibility.Collapsed;
     public Visibility LogRulesVisibility => SelectedCompletion == CompletionMode.LogRules ? Visibility.Visible : Visibility.Collapsed;
     public Visibility March7thVisibility => SelectedGame?.Config.AdapterId == "march7th" ? Visibility.Visible : Visibility.Collapsed;
-    public string ProfileHeader => SelectedGame?.Config.AdapterId == "bettergi" ? "一条龙配置名称" : "工作流名称（可选）";
-    public string ProfileHint => SelectedGame?.Config.AdapterId == "bettergi" ? "填写 BetterGI 中已保存的一条龙名称。" : "留空运行助手默认日常。";
+    public string ProfileHeader => SelectedGame?.Config.AdapterId switch { "bettergi" => "一条龙配置名称", "maaend" => "实例名称（可选）", _ => "工作流名称（可选）" };
+    public string ProfileHint => SelectedGame?.Config.AdapterId switch { "bettergi" => "填写 BetterGI 中已保存的一条龙名称。", "maaend" => "填写 MaaEnd 中的实例名称，留空使用其默认自动执行实例。", _ => "留空运行助手默认日常。" };
     public string ToolPathHeader => SelectedGame?.Config.AdapterId == "march7th" ? "助手程序 · March7th Assistant.exe" : "助手程序 · " + (SelectedGame?.ToolName ?? "");
     public AssistantRunMode SelectedRunMode
     {

@@ -75,6 +75,10 @@ public sealed partial class MainWindow
         if (ViewModel.AutomaticVisibility != Visibility.Collapsed) throw new InvalidOperationException("手动执行应隐藏自动参数与结果规则");
         ViewModel.SelectedTrigger = Core.Models.TriggerMode.VerifiedCommand;
         ViewModel.SelectedCompletion = Core.Models.CompletionMode.AdapterEvidence;
+        ViewModel.SelectedGame = ViewModel.Games.Single(g => g.Config.AdapterId == "maaend");
+        if (ViewModel.ProfileVisibility != Visibility.Visible || ViewModel.ProfileHeader != "实例名称（可选）"
+            || ViewModel.RunModeVisibility != Visibility.Collapsed || !ViewModel.SelectedGame.AssistantIcon.EndsWith("MaaEnd.png"))
+            throw new InvalidOperationException("MaaEnd 配置项或图标错误");
         ViewModel.SelectedGame = ViewModel.Games[0];
         Mark("Select BetterGI");
         AdvancedOptions.IsExpanded = true;
@@ -184,18 +188,18 @@ public sealed partial class MainWindow
             throw new InvalidOperationException("页面切换未使用原生导航过渡");
         Mark("Assistant bundle round trip");
         var selectionDialog = new AssistantSelectionDialog("导出", Core.Models.GameCatalog.Games);
-        if (selectionDialog.SelectedAdapterIds.Length != 4 || selectionDialog.SelectAll.IsChecked != true)
+        if (selectionDialog.SelectedAdapterIds.Length != ViewModel.Games.Count || selectionDialog.SelectAll.IsChecked != true)
             throw new InvalidOperationException("助手选择默认全选状态错误");
         selectionDialog.Choices[0].IsChecked = false;
-        if (selectionDialog.SelectedAdapterIds.Length != 3 || selectionDialog.SelectAll.IsChecked is not null)
+        if (selectionDialog.SelectedAdapterIds.Length != ViewModel.Games.Count - 1 || selectionDialog.SelectAll.IsChecked is not null)
             throw new InvalidOperationException("助手多选状态错误");
         selectionDialog.SelectAll.IsChecked = false;
         if (selectionDialog.IsPrimaryButtonEnabled || selectionDialog.SelectedAdapterIds.Length != 0)
             throw new InvalidOperationException("未选择助手时应禁用操作");
         selectionDialog.SelectAll.IsChecked = true;
-        if (selectionDialog.SelectedAdapterIds.Length != 4 || !selectionDialog.IsPrimaryButtonEnabled)
+        if (selectionDialog.SelectedAdapterIds.Length != ViewModel.Games.Count || !selectionDialog.IsPrimaryButtonEnabled)
             throw new InvalidOperationException("助手全选失败");
-        string[] assistantFiles = ["User/config.json", "config.yaml", "configs/daily.json", "config/01/game.yml"];
+        string[] assistantFiles = ["User/config.json", "config.yaml", "configs/daily.json", "config/01/game.yml", "config/mxu-MaaEnd.json"];
         for (var i = 0; i < ViewModel.Games.Count; i++)
         {
             var game = ViewModel.Games[i].Config;
@@ -214,12 +218,12 @@ public sealed partial class MainWindow
         if (!File.Exists(subsetPath) || !AssistantBundleService.Read(await File.ReadAllTextAsync(subsetPath)).Assistants.Select(p => p.AdapterId).SequenceEqual(["march7th", "zzz"]))
             throw new InvalidOperationException("勾选助手导出失败：" + ViewModel.Message);
         await ViewModel.ExportAssistantsAsync(bundlePath);
-        if (!File.Exists(bundlePath) || AssistantBundleService.Read(await File.ReadAllTextAsync(bundlePath)).Assistants.Count != 4)
+        if (!File.Exists(bundlePath) || AssistantBundleService.Read(await File.ReadAllTextAsync(bundlePath)).Assistants.Count != ViewModel.Games.Count)
             throw new InvalidOperationException("全部助手导出失败：" + ViewModel.Message);
         foreach (var card in ViewModel.Games) card.Config.Daily.TimeoutMinutes = 60;
         await ViewModel.ImportAssistantsAsync(bundlePath, ["march7th", "zzz"]);
         persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));
-        if (!persisted.Games.Select(g => g.Daily.TimeoutMinutes).SequenceEqual([60d, 21d, 60d, 23d]))
+        if (!persisted.Games.Select(g => g.Daily.TimeoutMinutes).SequenceEqual([60d, 21d, 60d, 23d, 60d]))
             throw new InvalidOperationException("勾选助手导入或持久化失败：" + ViewModel.Message);
         await ViewModel.ImportAssistantsAsync(bundlePath);
         persisted = await ConfigurationStore.ReadValidatedAsync(Path.Combine(ViewModel.DataDirectory, "config.json"));

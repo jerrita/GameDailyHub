@@ -11,7 +11,7 @@ public sealed class AdapterRegistry : IAdapterRegistry
     private readonly Dictionary<string, IToolAdapter> _adapters;
     public AdapterRegistry(ProcessService processes, SourceAssistantService? sources = null)
     {
-        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new ZzzAdapter(processes, sources)];
+        IToolAdapter[] adapters = [new BetterGiAdapter(processes), new March7thAdapter(processes, sources), new OkWwAdapter(processes, sources), new ZzzAdapter(processes, sources), new MaaEndAdapter(processes)];
         _adapters = adapters.ToDictionary(a => a.Capabilities.Id);
     }
     public IToolAdapter Get(string id) => _adapters.TryGetValue(id, out var adapter) ? adapter : throw new InvalidOperationException("未知适配器：" + id);
@@ -78,7 +78,7 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
             var name = Path.GetFileName(game.NormalPath);
             var isAssistant = game.Normal.Target == LaunchTarget.Assistant
                 || new[] { game.ToolPath, game.ToolGuiPath }.Any(p => !string.IsNullOrWhiteSpace(p) && string.Equals(ProcessService.Normalize(p), ProcessService.Normalize(game.NormalPath), StringComparison.OrdinalIgnoreCase))
-                || new[] { "BetterGI.exe", "March7th Assistant.exe", "March7th Launcher.exe", "ok-ww.exe", "OneDragon-Launcher.exe", "OneDragon-RuntimeLauncher.exe" }.Contains(name, StringComparer.OrdinalIgnoreCase);
+                || new[] { "BetterGI.exe", "March7th Assistant.exe", "March7th Launcher.exe", "ok-ww.exe", "OneDragon-Launcher.exe", "OneDragon-RuntimeLauncher.exe", "MaaEnd.exe", "mxu.exe" }.Contains(name, StringComparer.OrdinalIgnoreCase);
             if (!source && name.Equals("March7th Assistant.exe", StringComparison.OrdinalIgnoreCase)) errors.Add("March7th Assistant.exe 默认执行任务，普通启动必须选择 March7th Launcher.exe");
             if (isAssistant)
             {
@@ -125,6 +125,7 @@ public abstract class ProcessToolAdapter(ProcessService processes, SourceAssista
             {
                 "bettergi" => Path.Combine(Path.GetDirectoryName(game.ToolPath)!, "log", "better-genshin-impact*.log"),
                 "okww" => Path.Combine(source ? Sources.DirectoryFor(game) : Path.GetDirectoryName(game.ToolPath)!, "logs", "ok-ww.log"),
+                "maaend" => Path.Combine(Path.GetDirectoryName(game.ToolPath)!, "debug", "????-??-??-*.log"),
                 _ => null
             };
         var tail = string.IsNullOrWhiteSpace(logPath) ? null : new LogTail(logPath);

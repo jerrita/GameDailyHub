@@ -16,6 +16,7 @@ public partial class GameCardViewModel : ObservableObject
         "march7th" => "ms-appx:///Assets/Assistants/March7thAssistant.png",
         "okww" => "ms-appx:///Assets/Assistants/OK-WW.png",
         "zzz" => "ms-appx:///Assets/Assistants/ZenlessZoneZero-OneDragon.png",
+        "maaend" => "ms-appx:///Assets/Assistants/MaaEnd.png",
         _ => "ms-appx:///Assets/AppIcon.png"
     };
     public const string ReadyStatus = "已就绪";

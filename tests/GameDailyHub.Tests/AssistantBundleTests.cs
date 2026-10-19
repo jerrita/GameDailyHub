@@ -56,10 +56,10 @@ public sealed class AssistantBundleTests : IDisposable
     }
 
     [Fact]
-    public void BundleRoundTripRestoresAllFourAssistantsAndDailySettings()
+    public void BundleRoundTripRestoresAllAssistantsAndDailySettings()
     {
-        string[] adapters = ["bettergi", "march7th", "okww", "zzz"];
-        string[] paths = ["User/config.json", "config.yaml", "configs/daily.json", "config/01/game.yml"];
+        string[] adapters = ["bettergi", "march7th", "okww", "zzz", "maaend"];
+        string[] paths = ["User/config.json", "config.yaml", "configs/daily.json", "config/01/game.yml", "config/mxu-MaaEnd.json"];
         var sources = adapters.Select(a => Location(a, DirectoryFor("source-" + a))).ToArray();
         var targets = adapters.Select(a => Location(a, DirectoryFor("target-" + a))).ToArray();
         for (var i = 0; i < adapters.Length; i++)
@@ -70,9 +70,9 @@ public sealed class AssistantBundleTests : IDisposable
             targets[i].Game.Daily.WorkingDirectory = "local-directory";
         }
         var exported = AssistantBundleService.Export(sources);
-        Assert.Equal(4, exported.AssistantsExported); Assert.Empty(exported.Skipped);
+        Assert.Equal(adapters.Length, exported.AssistantsExported); Assert.Empty(exported.Skipped);
         var result = AssistantBundleService.Import(exported.Json, targets.Reverse());
-        Assert.Equal(new(4, 4, 4), result);
+        Assert.Equal(new(adapters.Length, adapters.Length, adapters.Length), result);
         for (var i = 0; i < adapters.Length; i++)
         {
             Assert.Contains("true", File.ReadAllText(Path.Combine(targets[i].Root!, paths[i])));

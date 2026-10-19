@@ -50,6 +50,18 @@
 
 默认参数不附带关闭游戏、关机、休眠或睡眠操作。停止、超时和跳过沿用现有 Job Object 清理。助手配置导入导出迁移 Hub 日常设置及 `config` 下的用户 YAML 配置，包含账号实例、应用组和自定义战斗配置；具体文件与恢复规则见 [SETTINGS.md](SETTINGS.md#助手配置导入导出)。支持与其它助手统一导出、导入。真实游戏与安装版提权运行尚需本机联调。
 
+## MaaEnd
+
+2026-10-19 核查 MaaEnd v2 提交 `fe2dd18146a3450349d648566ec7024e770819aa` 与 MXU main 提交 `5e923e83b30a102fb78da35c30ee2e1559aea682`：
+
+- [MaaEnd 发布工作流](https://github.com/MaaEnd/MaaEnd/blob/fe2dd18146a3450349d648566ec7024e770819aa/.github/workflows/install.yml) 将 MXU 的 `mxu.exe` 复制为 `MaaEnd.exe`，随包提供 MaaFramework、Agent 和资源。Hub 使用已安装的完整 Windows 版。
+- [MXU 官方参数](https://github.com/MistEO/MXU/blob/5e923e83b30a102fb78da35c30ee2e1559aea682/README.md#命令行参数)：普通启动空参数；日常 `--autostart --quit-after-run`，可附加 `--instance "实例名"`。这些启动参数只影响本次调用。
+- [实例选择及退出](https://github.com/MistEO/MXU/blob/5e923e83b30a102fb78da35c30ee2e1559aea682/src/App.tsx)：找不到名称会回退到 `autoStartInstanceId`；任务运行状态由运行转为空闲后调用 `exit(0)`。Hub 预先校验唯一实例，读取 `settings.autoRunOnLaunch` 和实例 `schedulePolicies`，防止普通启动自动执行及独立定时冲突。
+- [配置文件命名](https://github.com/MistEO/MXU/blob/5e923e83b30a102fb78da35c30ee2e1559aea682/src-tauri/src/commands/app_config.rs) 与 [配置结构](https://github.com/MistEO/MXU/blob/5e923e83b30a102fb78da35c30ee2e1559aea682/src/types/config.ts)：MaaEnd 使用 `config/mxu-MaaEnd.json`。配置导入导出只接入此文件；导入实例及任务时按 ID 对应本机路径。
+- [前端日志](https://github.com/MistEO/MXU/blob/5e923e83b30a102fb78da35c30ee2e1559aea682/src/utils/logger.ts) 为 `debug/YYYY-MM-DD-序号.log`，Hub 只读取启动后新增内容。后端 Release 默认无标准输出，故默认跟踪界面日志；其自动执行结束不证明全部子任务成功，内置结果始终需要人工核对，已知错误与异常退出优先判失败。日志丢失或轮转导致证据不完整时进入未知状态。
+
+真实游戏、不同 MXU 版本及自动更新交接尚需本机联调。
+
 ## 共同策略
 
 源码模式使用 [March7th 官方 uv 工作流与 Python 入口](https://github.com/moesnow/March7thAssistant/blob/main/README_EN.md)、[OK-WW main.py](https://github.com/ok-oldking/ok-wuthering-waves/blob/master/main.py) 及其 `requirements.txt`。环境管理遵循 [uv 虚拟环境文档](https://docs.astral.sh/uv/pip/environments/)，包索引通过命令参数指定[清华镜像](https://mirrors.tuna.tsinghua.edu.cn/help/pypi/)，仅作用于该次安装。March7th 的 `uv sync` 同时覆盖项目中名为 `pypi` 的索引。启动使用 uv 管理的 `.venv/Scripts/python.exe`，使日常进程继续直接归属现有 Job Object。

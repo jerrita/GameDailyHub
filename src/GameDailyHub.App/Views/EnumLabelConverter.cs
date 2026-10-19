@@ -25,6 +25,7 @@ public sealed class EnumLabelConverter : IValueConverter
         "march7th" => "March7thAssistant",
         "okww" => "OK-WW",
         "zzz" => "绝区零一条龙",
+        "maaend" => "MaaEnd",
         _ => value
     };
     public object ConvertBack(object value, Type targetType, object parameter, string language) => throw new NotSupportedException();

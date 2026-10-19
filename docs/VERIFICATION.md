@@ -165,3 +165,14 @@
 - 本机已安装 .NET 10.0.13 和 Windows App Runtime 2.5.1 x64。普通权限测试版使用独立发布与数据目录，六页面及配置保存检查通过，绑定错误 0；未启动管理员交付版。
 - 完整解决方案 Release 重建、静态分析及 fmt 检查通过；构建日志：`artifacts/build-cleanup.log`。
 - 日志：`artifacts/lint-build-shared-runtime.log`、`artifacts/publish-shared-runtime.log`、`artifacts/fmt-shared-runtime.log`；界面报告：`artifacts/smoke-shared-runtime/smoke.json`。此前实机待验项目继续保留。
+
+## 2026-10-19 MaaEnd 接入
+
+- 新增终末地 / MaaEnd 安装版卡片、日常队列、默认助手路径查找及实例名称配置；旧四游戏配置自动补齐，保留原队列顺序与启用状态。
+- 核对 MXU 的实例回退、普通启动自动执行、独立定时与运行结束退出行为。测试覆盖默认及命名实例、重复和不存在的实例、自定义参数、首次初始化、普通启动约束、流程结束人工确认及失败优先。
+- 配置导入导出覆盖 `config/mxu-MaaEnd.json`、实例任务恢复、实例重排后的本机路径保留与备份；五助手统一恢复通过。
+- Release 编译完成；153 项测试通过，失败 0、跳过 0。普通权限界面检查通过，六页面、五游戏、MaaEnd 配置项和图标、配置保存及选择导入导出检查通过，绑定错误 0。报告：`artifacts/smoke-maaend/smoke.json`；测试：`artifacts/TestResults/tests.trx`。均使用隔离数据，未使用真实账号配置。
+- fmt 与警告、错误级静态分析通过。信息级分析返回 4 条既有建议：`AssistantProfileService.cs` 的 CA1861 数组分配及两处 SYSLIB1045 正则生成建议、`EnumLabelConverter.cs` 的 CsWinRT1028 partial 标记建议。核对 HEAD 确认均已存在，保持原样。
+- 受限环境下 Git 下载、fmt 管道连接及构建停滞已通过沙箱外重试解决。官方页面探查中的失效路径已由官方源码核对替代。
+
+待验证：MaaEnd 与真实游戏的日常执行、配置恢复后运行、自动更新进程交接、管理员交付版实际启动；此前登录任务与纯净 Windows 部署待验项目继续保留。

@@ -73,6 +73,7 @@ public static class ConfigurationSuggestions
             "march7th" => ("March7thAssistant", new[] { "March7th Assistant.exe" }),
             "okww" => ("ok-ww", new[] { "ok-ww.exe" }),
             "zzz" => ("ZenlessZoneZero-OneDragon", new[] { "OneDragon-RuntimeLauncher.exe", "OneDragon-Launcher.exe" }),
+            "maaend" => ("MaaEnd", new[] { "MaaEnd.exe", "mxu.exe" }),
             _ => ("", Array.Empty<string>())
         };
         if (executables.Length == 0) yield break;

@@ -24,7 +24,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var store = new ConfigurationStore(_directory); var config = AppConfig.CreateDefault();
         config.Games[0].Normal.Arguments = "ordinary"; config.Games[0].Daily.Arguments = "automation";
         await store.SaveAsync(config); var loaded = await new ConfigurationStore(_directory).LoadAsync();
-        Assert.Equal("ordinary", loaded.Games[0].Normal.Arguments); Assert.Equal("automation", loaded.Games[0].Daily.Arguments); Assert.Equal(4, loaded.Tasks.Count);
+        Assert.Equal("ordinary", loaded.Games[0].Normal.Arguments); Assert.Equal("automation", loaded.Games[0].Daily.Arguments); Assert.Equal(GameCatalog.Games.Count, loaded.Tasks.Count);
     }
     [Fact]
     public async Task ExistingConfigurationGetsSupportedGamesWithoutResettingPathsOrQueue()
@@ -52,13 +52,13 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var loaded = await store.LoadAsync();
 
         Assert.Null(store.RecoveryMessage);
-        Assert.Equal(new[] { "原神", "崩坏：星穹铁道", "鸣潮", "绝区零" }, loaded.Games.Select(game => game.Name));
+        Assert.Equal(GameCatalog.Games.Select(game => game.Name), loaded.Games.Select(game => game.Name));
         Assert.Equal(originalGame.Id, loaded.Games[0].Id);
         Assert.Equal(originalGame.ToolPath, loaded.Games[0].ToolPath);
         Assert.Equal(originalGame.GamePath, loaded.Games[0].GamePath);
         Assert.Equal("saved-flow", loaded.Games[0].Daily.ProfileName);
         Assert.Equal(25, loaded.Games[0].Daily.TimeoutMinutes);
-        Assert.Equal(originalTasks, loaded.Tasks.Take(3).Select(task => (task.Id, task.GameId, task.Enabled)));
+        Assert.Equal(originalTasks, loaded.Tasks.Take(originalTasks.Length).Select(task => (task.Id, task.GameId, task.Enabled)));
         var zzz = loaded.Games.Single(game => game.AdapterId == "zzz");
         var addedTask = Assert.Single(loaded.Tasks, task => task.GameId == zzz.Id);
         Assert.True(loaded.Schedule.Enabled);
@@ -69,7 +69,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var again = await store.LoadAsync();
         Assert.Equal(zzz.Id, again.Games.Single(game => game.AdapterId == "zzz").Id);
         Assert.Equal(addedTask.Id, Assert.Single(again.Tasks, task => task.GameId == zzz.Id).Id);
-        Assert.Equal(4, again.Tasks.Count);
+        Assert.Equal(GameCatalog.Games.Count, again.Tasks.Count);
     }
 
     [Fact]
@@ -86,7 +86,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
         var imported = await new ConfigurationStore(_directory).ImportAsync(importPath);
 
         Assert.False(imported.Schedule.Enabled);
-        Assert.Equal(4, imported.Games.Count);
+        Assert.Equal(GameCatalog.Games.Count, imported.Games.Count);
         Assert.DoesNotContain(imported.Tasks, task => task.GameId == config.Games[0].Id);
         Assert.Single(imported.Tasks, task => task.GameId == imported.Games.Single(game => game.AdapterId == "zzz").Id);
     }
@@ -105,7 +105,7 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
 
         await new ConfigurationStore(_directory).SaveAsync(config);
 
-        Assert.Equal(4, config.Games.Count);
+        Assert.Equal(GameCatalog.Games.Count, config.Games.Count);
         Assert.Same(original, Assert.Single(config.Games, game => game.AdapterId == "bettergi"));
         Assert.Equal(("原神", "BetterGI"), (original.Name, original.ToolName));
         Assert.Equal(original.Id, task.GameId);
@@ -152,6 +152,8 @@ public sealed class PersistenceAndEvidenceTests : IDisposable
     [InlineData("okww", "ok-ww", "ok-ww.exe")]
     [InlineData("zzz", "ZenlessZoneZero-OneDragon", "OneDragon-RuntimeLauncher.exe")]
     [InlineData("zzz", "ZenlessZoneZero-OneDragon", "OneDragon-Launcher.exe")]
+    [InlineData("maaend", "MaaEnd", "MaaEnd.exe")]
+    [InlineData("maaend", "MaaEnd", "mxu.exe")]
     public void BlankAssistantPathUsesExistingDefault(string adapter, string folder, string executable)
     {
         var directory = Path.Combine(_directory, folder);
