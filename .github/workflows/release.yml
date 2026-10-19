@@ -1,0 +1,66 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: windows-2025-vs2026
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Validate version tag
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          if ($env:RELEASE_TAG -cnotmatch '^v[0-9]+\.[0-9]+\.[0-9]+$') {
+              throw '正式版本标签必须采用 v1.2.3 格式。'
+          }
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          global-json-file: global.json
+
+      - name: Build and publish Windows x64
+        run: ./scripts/Publish.ps1
+
+      - name: Package release
+        run: |
+          $publishDirectory = Join-Path $PWD 'artifacts/publish/win-x64'
+          if (-not (Test-Path -LiteralPath (Join-Path $publishDirectory 'GameDailyHub.App.exe'))) {
+              throw '发布目录缺少 GameDailyHub.App.exe。'
+          }
+          Compress-Archive -Path "$publishDirectory/*" -DestinationPath 'artifacts/GameDailyHub-win-x64.zip' -CompressionLevel Optimal
+          @'
+          Windows x64 版本。解压完整 ZIP 后运行 GameDailyHub.App.exe，保留同目录依赖文件。
+
+          运行前请安装：
+          - [.NET 10 Runtime（x64）](https://dotnet.microsoft.com/zh-cn/download/dotnet/10.0)
+          - [Windows App Runtime 2.5.1 或兼容更新版本（x64）](https://learn.microsoft.com/windows/apps/windows-app-sdk/downloads)
+          '@ | Set-Content -LiteralPath 'artifacts/release-notes.md' -Encoding utf8
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          gh release create $env:RELEASE_TAG 'artifacts/GameDailyHub-win-x64.zip' --verify-tag --title $env:RELEASE_TAG --generate-notes --notes-file 'artifacts/release-notes.md'
+          if ($LASTEXITCODE -ne 0) { throw 'GitHub Release 发布失败。' }

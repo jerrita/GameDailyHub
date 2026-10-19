@@ -147,6 +147,15 @@ scheduled_tasks: []
 
 提交的 `packages.lock.json` 锁定依赖。还原默认使用锁定模式。修改依赖时，显式重新还原并核对锁文件。
 
+GitHub Actions 在推送 `v1.2.3` 格式的版本标签时，使用 Windows runner 编译 Release x64，创建正式 GitHub Release，并上传包含完整发布目录的 `GameDailyHub-win-x64.zip`。发布沿用上述共享运行库要求。工作流使用仓库自带的 `GITHUB_TOKEN`，无需配置额外密钥。
+
+提交并推送待发布代码后，执行以下命令发布对应版本（替换为实际版本号）：
+
+```powershell
+git tag v1.2.3
+git push origin v1.2.3
+```
+
 测试项目包含模拟适配器单元测试及测试专用进程程序，真实验证 Job Object、子进程、PID 创建时间、标准句柄继承、输出捕获和实例复用。该程序只用于测试，产品界面没有模拟成功数据。`Smoke.ps1` 构建 `asInvoker` 界面测试版，使用独立中间目录、输出目录和数据目录，启动前检查内嵌权限清单；管理员程序会在启动前被拦截。测试版仅接受冒烟入口，不读写登录启动设置，不触发 UAC。
 
 本次验证结果见 docs/VERIFICATION.md，涵盖六个页面、按需显示和配置保存。界面测试结果来自普通权限测试版；交付版通过静态提取内嵌清单验证 `requireAdministrator`，测试不启动交付版。发布构建显式包含 WinUI 项目 PRI/XBF 资源。
